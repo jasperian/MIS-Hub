@@ -1,0 +1,54 @@
+* {
+  box-sizing: border-box;
+}
+:root {
+  --discord-canvas: #0a0d3a;
+  --discord-primary: #5865f2;
+  --discord-green: #35ed7e;
+  --discord-magenta: #ec48bd;
+  --discord-surface: #1e2353;
+  --discord-onyx: #23272a;
+  --discord-ink: #ffffff;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+  color: var(--discord-ink);
+  background: var(--discord-canvas);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+a {
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #149c87;
+  outline-offset: 3px;
+}
+::selection {
+  background: #b1edda;
+}

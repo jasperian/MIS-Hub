@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "mysql"
+  url = env("DATABASE_URL")
+}
+enum Role {
+  ADMIN
+  IT
+  MANAGER
+  MEMBER
+}
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  passwordHash String @db.Text
+  role Role @default(MEMBER)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  sessions Session[]
+  credentials Credential[]
+}
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  expiresAt DateTime
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId])
+}
+model InventoryRecord {
+  id String @id @default(cuid())
+  kind String
+  name String
+  data Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([kind])
+}
+model Credential {
+  id String @id @default(cuid())
+  title String
+  username String
+  url String?
+  encryptedSecret String @db.Text
+  ownerId String
+  owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  targetId String
+  details Json?
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
