@@ -1383,10 +1383,7 @@ table td,
   opacity: 0.35;
   background: linear-gradient(125deg, transparent 18%, rgba(88, 101, 242, 0.28), transparent 48%, rgba(236, 72, 189, 0.18), transparent 76%);
   background-size: 180% 180%;
-  animation: meshShift 14s ease-in-out infinite alternate;
-}
-@keyframes meshShift {
-  to { background-position: 100% 70%; }
+  background-position: 50% 50%;
 }
 .sidebar {
   width: 264px;

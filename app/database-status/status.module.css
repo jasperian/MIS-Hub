@@ -1,0 +1,122 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(88, 101, 242, 0.3), transparent 35%),
+    radial-gradient(circle at 85% 80%, rgba(236, 72, 189, 0.18), transparent 32%),
+    var(--discord-canvas);
+}
+
+.card {
+  width: min(100%, 620px);
+  padding: clamp(28px, 6vw, 52px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: rgba(30, 35, 83, 0.92);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.indicator {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  border: 8px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  box-shadow: 0 0 36px currentColor;
+}
+
+.connected {
+  color: var(--discord-green);
+  background: var(--discord-green);
+}
+
+.disconnected {
+  color: #ff637d;
+  background: #ff637d;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #aeb6ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.message {
+  max-width: 480px;
+  margin: 20px auto 0;
+  color: #d6daf7;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-width: 150px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.primaryAction {
+  background: var(--discord-primary);
+  color: white;
+}
+
+.secondaryAction {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.primaryAction:hover,
+.secondaryAction:hover {
+  transform: translateY(-2px);
+}
+
+.primaryAction:hover {
+  background: #7180ff;
+}
+
+.secondaryAction:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.privacyNote {
+  margin: 28px 0 0;
+  color: #9da5d3;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 460px) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .primaryAction,
+  .secondaryAction {
+    width: 100%;
+  }
+}

@@ -60,3 +60,47 @@ model AuditLog {
   createdAt DateTime @default(now())
   @@index([createdAt])
 }
+
+model Ms365Batch {
+  id String @id @default(cuid())
+  batchNumber Int @unique
+  accountEmail String @unique
+  encryptedSecret String @db.Text
+  status Ms365BatchStatus @default(ACTIVE)
+  notes String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assignments Ms365Assignment[]
+
+  @@index([status])
+}
+
+model Ms365Assignment {
+  id String @id @default(cuid())
+  batchId String
+  slotNumber Int
+  memberId String
+  computerId String?
+  externalDeviceName String?
+  installedAt DateTime @default(now())
+  releasedAt DateTime?
+  status Ms365AssignmentStatus @default(ACTIVE)
+  notes String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  batch Ms365Batch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@index([batchId, status])
+  @@index([memberId, status])
+  @@index([computerId, status])
+}
+
+enum Ms365BatchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Ms365AssignmentStatus {
+  ACTIVE
+  RELEASED
+}

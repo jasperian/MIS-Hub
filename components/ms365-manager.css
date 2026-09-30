@@ -1,0 +1,43 @@
+.ms365-manager { display: grid; gap: 18px; }
+.ms365-summary { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.ms365-summary h2 { margin: 6px 0; color: white; font: 800 28px/1.1 "Arial Black", "Segoe UI", sans-serif; text-transform: uppercase; letter-spacing: -1px; }
+.ms365-summary p { margin: 0; }
+.ms365-manager .alert { margin: 0; }
+.ms365-manager tbody tr { cursor: pointer; }
+.ms365-capacity { display: flex; align-items: center; gap: 10px; min-width: 125px; }
+.ms365-capacity > span { min-width: 38px; color: #dce0fa; }
+.ms365-capacity > i { display: block; width: 72px; height: 7px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.1); }
+.ms365-capacity em { display: block; height: 100%; border-radius: inherit; background: #35ed7e; }
+.ms365-modal { width: 760px; }
+.ms365-detail-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 0 0 24px; }
+.ms365-section-title { margin: 0 0 10px; color: #c6cbed; }
+.ms365-slots { display: grid; gap: 8px; }
+.ms365-slot { display: grid; grid-template-columns: 28px 40px minmax(180px, 1fr) auto auto; align-items: center; gap: 10px; padding: 12px; border: 1px solid rgba(255,255,255,.09); border-radius: 13px; background: rgba(8,10,45,.25); }
+.ms365-slot.released { opacity: .65; }
+.ms365-slot-number { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 99px; color: #071d11; background: #35ed7e; font-size: 12px; font-weight: 800; }
+.ms365-slot p, .ms365-slot small { display: flex; align-items: center; gap: 5px; margin: 4px 0 0; color: #9fa7d4; font-size: 12px; }
+.ms365-slot strong { color: white; font-size: 13px; }
+.ms365-device-choice { display: flex; gap: 18px; padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; }
+.ms365-device-choice legend { padding: 0 6px; color: #c6cbed; font-size: 12px; }
+.ms365-device-choice label { flex-direction: row; align-items: center; }
+.ms365-device-choice input { width: auto; min-height: auto; accent-color: #35ed7e; }
+.ms365-secret label { display: grid; gap: 8px; color: #c6cbed; font-size: 13px; }
+.ms365-secret input { width: 100%; min-height: 44px; padding: 10px 12px; color: white; border: 1px solid rgba(255,255,255,.13); border-radius: 12px; background: #0f1341; font-size: 16px; }
+.ms365-profile { margin-top: 22px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.09); }
+.ms365-profile-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+.ms365-profile-heading h3 { margin: 0 0 4px; color: white; }
+.ms365-profile-heading p { margin: 0; color: #9fa7d4; font-size: 12px; }
+.ms365-profile-list { display: grid; gap: 8px; }
+.ms365-profile-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.09); border-radius: 12px; background: rgba(8,10,45,.25); }
+.ms365-profile-row strong, .ms365-profile-row small { display: block; overflow-wrap: anywhere; }
+.ms365-profile-row strong { color: white; font-size: 13px; }
+.ms365-profile-row small { margin-top: 4px; color: #9fa7d4; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 680px) {
+  .ms365-summary { align-items: stretch; flex-direction: column; }
+  .ms365-summary .button { align-self: flex-start; }
+  .ms365-slot { grid-template-columns: 28px 40px 1fr; }
+  .ms365-slot .badge, .ms365-slot > .button { grid-column: 3; justify-self: start; }
+  .ms365-profile-row { grid-template-columns: 1fr; }
+  .ms365-profile-row .badge { justify-self: start; }
+}

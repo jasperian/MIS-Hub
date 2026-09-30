@@ -42,7 +42,15 @@ To restart the validated production build locally, run `npm.cmd start`. For sour
 
 `prisma/initial-schema.sql` is an alternative initial schema import for an empty database through phpMyAdmin. Do not import it over an existing populated schema. Routine schema changes should go through Prisma rather than manual table edits.
 
-Inventory uses category records with JSON detail fields, validated and linked by application transactions. Login, sessions, credentials, and audit logs use separate tables. This first version includes inventory CRUD, toner replacements, linked email records, self-service profiles, and account permissions. Automated discovery, provider mailbox integration, uploads, CSV import/export, and advanced maintenance scheduling are not included. Before wider deployment, review access and recovery procedures and configure shared rate limiting if running multiple application instances.
+Inventory uses category records with JSON detail fields, validated and linked by application transactions. Login, sessions, credentials, Microsoft 365 batches and assignments, and audit logs use separate tables. This version includes inventory CRUD, toner replacements, linked email records, Microsoft 365 installation tracking, self-service profiles, and account permissions. Automated discovery, Microsoft 365 provisioning, provider mailbox integration, uploads, CSV import/export, and advanced maintenance scheduling are not included. Before wider deployment, review access and recovery procedures and configure shared rate limiting if running multiple application instances.
+
+## Microsoft 365 batches
+
+Open **Microsoft 365** to track shared installation accounts as Batch 1, Batch 2, and onward. Each batch has five active installation slots. An administrator or IT staff member can add a batch, assign a slot to a team member and device, release an installation while preserving its history, and update the shared account details. A slot can reference a registered computer/laptop or an external device description. The same registered device cannot hold two active Microsoft 365 assignments.
+
+Managers can view batch capacity and assignments without access to the shared password. Team members see only the assignments linked to their own profile. Administrators and IT staff must enter their own MIS login password before revealing or replacing a batch password. Microsoft 365 passwords are encrypted with `VAULT_ENCRYPTION_KEY` and excluded from list responses and audit details.
+
+The `/api/microsoft-365` endpoint lists and creates batches, while `/api/microsoft-365/[id]` reads and updates one batch. Nested assignment endpoints allocate and release slots; `/reveal` reveals a shared password after reauthentication and `/password` replaces it. These APIs manage MIS inventory only: they do not create Microsoft accounts, activate Office, or communicate with Microsoft 365.
 
 ## Network scope
 
@@ -72,4 +80,4 @@ npm.cmd test
 Remove-Item Env:MIS_INTEGRATION_URL
 ```
 
-This creates temporary accounts and records to verify member isolation, credential ownership and reauthentication, encrypted storage, duplicate IP rejection, and toner transaction rollback. It removes only its created database IDs afterward; corresponding audit events remain. Run against a development database. Without `MIS_INTEGRATION_URL`, this test is skipped.
+This creates temporary accounts and records to verify member isolation, credential ownership and reauthentication, encrypted storage, duplicate IP rejection, toner transaction rollback, Microsoft 365 batch capacity, device assignment rules, password permissions, and release history. It removes only its created database IDs afterward; corresponding audit events remain. Run against a development database. Without `MIS_INTEGRATION_URL`, integration tests are skipped.

@@ -65,8 +65,49 @@ CREATE TABLE `AuditLog` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `Ms365Batch` (
+    `id` VARCHAR(191) NOT NULL,
+    `batchNumber` INTEGER NOT NULL,
+    `accountEmail` VARCHAR(191) NOT NULL,
+    `encryptedSecret` TEXT NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    `notes` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `Ms365Batch_batchNumber_key`(`batchNumber`),
+    UNIQUE INDEX `Ms365Batch_accountEmail_key`(`accountEmail`),
+    INDEX `Ms365Batch_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Ms365Assignment` (
+    `id` VARCHAR(191) NOT NULL,
+    `batchId` VARCHAR(191) NOT NULL,
+    `slotNumber` INTEGER NOT NULL,
+    `memberId` VARCHAR(191) NOT NULL,
+    `computerId` VARCHAR(191) NULL,
+    `externalDeviceName` VARCHAR(191) NULL,
+    `installedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `releasedAt` DATETIME(3) NULL,
+    `status` ENUM('ACTIVE', 'RELEASED') NOT NULL DEFAULT 'ACTIVE',
+    `notes` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `Ms365Assignment_batchId_status_idx`(`batchId`, `status`),
+    INDEX `Ms365Assignment_memberId_status_idx`(`memberId`, `status`),
+    INDEX `Ms365Assignment_computerId_status_idx`(`computerId`, `status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `Session` ADD CONSTRAINT `Session_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Credential` ADD CONSTRAINT `Credential_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Ms365Assignment` ADD CONSTRAINT `Ms365Assignment_batchId_fkey` FOREIGN KEY (`batchId`) REFERENCES `Ms365Batch`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

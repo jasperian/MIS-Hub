@@ -24,6 +24,7 @@ import {
   Menu,
   Check,
   Activity,
+  Grid3X3,
 } from "lucide-react";
 import "./mis-app.css";
 import {
@@ -32,6 +33,10 @@ import {
   UserManagement,
   RecordHistory,
 } from "./account-controls";
+import {
+  Microsoft365Manager,
+  Microsoft365ProfileSummary,
+} from "./ms365-manager";
 
 type Row = {
   id: string;
@@ -58,6 +63,7 @@ const modules = [
   { id: "access-points", label: "Access points", icon: Wifi },
   { id: "members", label: "Team members", icon: Users },
   { id: "emails", label: "Email accounts", icon: Mail },
+  { id: "microsoft-365", label: "Microsoft 365", icon: Grid3X3 },
   { id: "credentials", label: "My credentials", icon: ShieldCheck },
   { id: "profile", label: "My profile", icon: Users },
 ];
@@ -811,6 +817,8 @@ export default function MisApp() {
                   ? "A little clarity for everything you manage."
                   : view === "credentials"
                     ? "Your private, encrypted account credentials."
+                    : view === "microsoft-365"
+                      ? "Shared accounts and five-device installation batches."
                     : view === "profile"
                       ? "Your details and everything assigned to you."
                       : `Keep your ${current?.label.toLowerCase()} organized and up to date.`}
@@ -1151,6 +1159,14 @@ export default function MisApp() {
                 <span className="muted">254 usable addresses</span>
               </div>
             </section>
+          ) : view === "microsoft-365" ? (
+            <Microsoft365Manager
+              api={api}
+              user={user}
+              rows={rows}
+              demo={demo}
+              onChanged={load}
+            />
           ) : view === "credentials" ? (
             <CredentialPanel demo={demo} api={api} />
           ) : view === "profile" ? (
@@ -1210,6 +1226,9 @@ export default function MisApp() {
                             item.data.memberIds.includes(r.id)),
                       ),
                       true,
+                    )}
+                    {!demo && (
+                      <Microsoft365ProfileSummary api={api} memberId={r.id} />
                     )}
                   </div>
                 ))}
@@ -1473,6 +1492,9 @@ export default function MisApp() {
                         r.data.memberIds.includes(detail.id)),
                   ),
                   true,
+                )}
+                {!demo && (
+                  <Microsoft365ProfileSummary api={api} memberId={detail.id} />
                 )}
               </>
             )}
