@@ -61,6 +61,8 @@ type Props = {
   rows: Ms365InventoryRow[];
   demo: boolean;
   onChanged?: () => void | Promise<void>;
+  openId?: string;
+  onOpenHandled?: () => void;
 };
 
 export function Microsoft365ProfileSummary({
@@ -176,8 +178,11 @@ export function Microsoft365Manager({
   rows,
   demo,
   onChanged,
+  openId,
+  onOpenHandled,
 }: Props) {
   const [batches, setBatches] = useState<Ms365Batch[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [busy, setBusy] = useState(false);
@@ -200,11 +205,18 @@ export function Microsoft365Manager({
     if (demo) return;
     const result = await api("/api/microsoft-365");
     setBatches(result.batches || []);
+    setLoaded(true);
   }
 
   useEffect(() => {
     refresh().catch((reason) => setError(reason.message));
   }, [demo]);
+  useEffect(() => {
+    if (!openId || demo) return;
+    const batch = batches.find(item => item.id === openId);
+    if (batch) { setDialog({ kind: "detail", batch }); onOpenHandled?.(); }
+    else if (loaded) { setError("This Microsoft 365 account is no longer available."); onOpenHandled?.(); }
+  }, [openId, batches, loaded, demo, onOpenHandled]);
 
   useEffect(() => {
     if (!dialog) return;

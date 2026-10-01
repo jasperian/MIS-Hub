@@ -5,9 +5,11 @@ import {
   failure,
   HttpError,
   requireStaff,
+  secretString,
   string,
 } from "@/lib/server/auth";
 import { dealershipDb } from "@/lib/server/dealerships";
+import { encrypt } from "@/lib/server/encryption";
 import {
   checkIp,
   checkLinks,
@@ -29,6 +31,8 @@ export async function PATCH(request: Request, context: Context) {
         if (!old) throw new HttpError(404, "Record not found.");
         if (old.kind === "replacements")
           throw new HttpError(400, "Replacement history is immutable.");
+        if (input.password !== undefined && old.kind !== "emails") throw new HttpError(400, "Passwords can only be saved for email accounts.");
+        const emailPassword = input.password === undefined ? null : secretString(input.password, "Email password");
         const name =
           input.name === undefined ? old.name : string(input.name, "Name");
         const patch = input.data;
@@ -49,6 +53,7 @@ export async function PATCH(request: Request, context: Context) {
           where: { id },
           data: { name, data: data as Prisma.InputJsonValue },
         });
+        if (emailPassword) await tx.emailAccountPassword.upsert({ where: { recordId: id }, create: { recordId: id, encryptedSecret: encrypt(emailPassword) }, update: { encryptedSecret: encrypt(emailPassword) } });
         await tx.auditLog.create({
           data: {
             actorId: user.id,

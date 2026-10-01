@@ -46,6 +46,13 @@ export class HttpError extends Error {
 export async function requireUser() {
   const user = await currentUser();
   if (!user) throw new HttpError(401, "Please sign in.");
+  if (user.mustChangePassword)
+    throw new HttpError(403, "Change your temporary password to continue.");
+  return user;
+}
+export async function requirePasswordChangeUser() {
+  const user = await currentUser();
+  if (!user) throw new HttpError(401, "Please sign in.");
   return user;
 }
 export async function requireStaff() {
@@ -67,9 +74,10 @@ export function publicUser(user: {
   name: string;
   email: string;
   role: string;
+  mustChangePassword?: boolean;
   dealerships?: { dealership: { id: string; name: string } }[];
 }) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, dealerships: user.dealerships?.map((m) => m.dealership) || [] };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: !!user.mustChangePassword, dealerships: user.dealerships?.map((m) => m.dealership) || [] };
 }
 export async function body(request: Request): Promise<Record<string, unknown>> {
   if (Number(request.headers.get("content-length") || 0) > 65536)

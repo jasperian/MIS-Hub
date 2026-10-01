@@ -4,8 +4,9 @@ import { LockKeyhole, Plus, ShieldCheck, X } from "lucide-react";
 export type Api = (path: string, options?: RequestInit) => Promise<any>;
 type Credential = { id: string; title: string; username: string; url?: string };
 
-export function CredentialPanel({ demo, api }: { demo: boolean; api: Api }) {
+export function CredentialPanel({ demo, api, openId, onOpenHandled }: { demo: boolean; api: Api; openId?: string; onOpenHandled?: () => void }) {
   const [items, setItems] = useState<Credential[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [edit, setEdit] = useState<Partial<Credential> | null>(null);
   const [reveal, setReveal] = useState<Credential | null>(null);
   const [secret, setSecret] = useState<{
@@ -14,11 +15,16 @@ export function CredentialPanel({ demo, api }: { demo: boolean; api: Api }) {
   } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const refresh = async () =>
-    setItems((await api("/api/credentials")).credentials);
+  const refresh = async () => { setItems((await api("/api/credentials")).credentials); setLoaded(true); };
   useEffect(() => {
     if (!demo) refresh().catch((e) => setError(e.message));
   }, [demo]);
+  useEffect(() => {
+    if (!openId || demo) return;
+    const item = items.find(value => value.id === openId);
+    if (item) { setEdit(item); onOpenHandled?.(); }
+    else if (loaded) { setError("This credential is no longer available."); onOpenHandled?.(); }
+  }, [openId, items, loaded, demo, onOpenHandled]);
   useEffect(() => {
     if (!secret) return;
     const clear = () => {

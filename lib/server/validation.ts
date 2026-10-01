@@ -1,3 +1,5 @@
+import { isMainSubnetReserved, isValidIpv4 } from "../ip-addresses";
+
 export const kinds = [
   "members",
   "computers",
@@ -44,10 +46,9 @@ export function validateRecord(
   for (const ip of ips)
     if (
       ip &&
-      (typeof ip !== "string" ||
-        !/^172\.16\.11\.(?:[1-9]|[1-9]\d|1\d\d|2[0-4]\d|25[0-4])$/.test(ip))
+      (!isValidIpv4(ip) || isMainSubnetReserved(ip))
     )
-      throw new Error("Use a valid address from 172.16.11.1 to 172.16.11.254.");
+      throw new Error("Use a valid IPv4 address, such as 172.16.10.50.");
   if (new Set(ips.filter(Boolean)).size > 1)
     throw new Error("Use one consistent IP address per record.");
   if (

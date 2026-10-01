@@ -14,11 +14,13 @@ type SapUser = {
 };
 type Api = (path: string, options?: RequestInit) => Promise<any>;
 
-export function SapUsersManager({ api, members, writable, demo }: { api: Api; members: Member[]; writable: boolean; demo: boolean }) {
+export function SapUsersManager({ api, members, writable, demo, openId, onOpenHandled }: { api: Api; members: Member[]; writable: boolean; demo: boolean; openId?: string; onOpenHandled?: () => void }) {
   const [users, setUsers] = useState<SapUser[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState("");
+  const [selectedId, setSelectedId] = useState("");
   const [editing, setEditing] = useState<SapUser | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,9 +34,16 @@ export function SapUsersManager({ api, members, writable, demo }: { api: Api; me
       const data = await api("/api/sap-users");
       setUsers(data.users || []);
       setDealers(data.dealerships || []);
+      setLoaded(true);
     } catch (cause) { setError((cause as Error).message); }
   }
   useEffect(() => { reload(); }, [demo]);
+  useEffect(() => {
+    if (!openId || demo) return;
+    const match = users.find(user => user.id === openId);
+    if (match) { setQuery(match.sapId); setSearched(match.sapId); setSelectedId(match.id); if (writable) open(match); onOpenHandled?.(); }
+    else if (loaded) { setError("This SAP user is no longer available."); onOpenHandled?.(); }
+  }, [openId, users, loaded, demo, onOpenHandled]);
   const visible = users.filter((user) => {
     const text = [user.sapId, user.firstName, user.lastName, user.department, user.dealership.name, user.member?.name].join(" ").toLowerCase();
     return text.includes(searched.toLowerCase());
@@ -76,7 +85,7 @@ export function SapUsersManager({ api, members, writable, demo }: { api: Api; me
       {error && editing === undefined && <div className="alert error">{error}</div>}
       {notice && <div className="alert">{notice}</div>}
       <div className="table-scroll"><table className="sap-table"><thead><tr><th>Status</th><th>SAP ID</th><th>Name</th><th>Department</th><th>Dealer</th><th>Valid period</th><th>Team member</th>{writable && <th>Actions</th>}</tr></thead>
-      <tbody>{visible.map(user => <tr key={user.id}>
+      <tbody>{visible.map(user => <tr key={user.id} style={selectedId === user.id ? { background: "rgba(115, 150, 220, .16)" } : undefined}>
         <td><span className={`badge ${user.status === "ACTIVE" ? "good" : "neutral"}`}>{user.status === "ACTIVE" ? "Active" : "Inactive"}</span></td>
         <td><strong>{user.sapId}</strong></td><td>{user.lastName}, {user.firstName}</td><td>{user.department}</td>
         <td><span className="dealer-tag">{user.dealership.name}</span></td>

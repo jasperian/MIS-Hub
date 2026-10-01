@@ -36,6 +36,7 @@ export function UserManagement({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
+  const [resetUser, setResetUser] = useState<Account | null>(null);
   async function refresh() {
     const result = await api("/api/users");
     setUsers(result.users);
@@ -308,6 +309,7 @@ export function UserManagement({
                     </span>
                   </td>
                   <td>
+                    {!self && <button className="button small" type="button" disabled={busy} onClick={() => { setResetUser(u); setError(""); setNotice(""); }}>Reset password</button>}
                     <button
                       className={`button small ${u.active ? "accounts-disable" : ""}`}
                       disabled={busy || self}
@@ -386,6 +388,15 @@ export function UserManagement({
           ))}
         </div>
       </details>
+      {resetUser && <div className="accounts-reset-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setResetUser(null); }}><div className="accounts-reset-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <h3 id="reset-title">Reset password for {resetUser.name}</h3>
+        <p className="muted">Enter a temporary password. Current sessions will be signed out, and this person must choose a new password at next sign-in.</p>
+        <form onSubmit={async (e) => { e.preventDefault(); const form = e.currentTarget; const password = String(new FormData(form).get("password") || ""); if (!confirm(`Reset the MIS login password for ${resetUser.name}?`)) return; setBusy(true); setError(""); try { await api(`/api/users/${resetUser.id}`, { method: "PATCH", body: JSON.stringify({ password }) }); setResetUser(null); setNotice(`Temporary password set for ${resetUser.name}. Share it through an approved channel.`); form.reset(); await refresh(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}>
+          <label>Temporary password<input type="password" name="password" minLength={12} maxLength={1024} autoComplete="new-password" required /></label>
+          {error && <p className="alert error" role="alert">{error}</p>}
+          <div className="accounts-reset-actions"><button type="button" className="button" onClick={() => setResetUser(null)} disabled={busy}>Cancel</button><button className="button primary" disabled={busy}>{busy ? "Saving…" : "Set temporary password"}</button></div>
+        </form>
+      </div></div>}
     </section>
   );
 }

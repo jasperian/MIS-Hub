@@ -25,6 +25,9 @@ import {
   Check,
   Activity,
   Grid3X3,
+  Sun,
+  Moon,
+  BookOpen,
 } from "lucide-react";
 import "./mis-app.css";
 import { isLaserJet, replacementHistory } from "@/lib/toner";
@@ -39,6 +42,10 @@ import {
   Microsoft365ProfileSummary,
 } from "./ms365-manager";
 import { SapUsersManager, SapUserMemberSummary } from "./sap-users";
+import Tutorial from "./tutorial";
+import { GlobalSearch } from "./global-search";
+import type { SearchResult } from "@/lib/search";
+import { compareIpv4, isMainSubnetHost, mainSubnetAssignedCount } from "@/lib/ip-addresses";
 
 type Row = {
   id: string;
@@ -49,7 +56,7 @@ type Row = {
   dealershipId?: string;
   dealership?: { id: string; name: string };
 };
-type User = { id: string; name: string; email: string; role: string; dealerships?: { id: string; name: string }[] };
+type User = { id: string; name: string; email: string; role: string; mustChangePassword?: boolean; dealerships?: { id: string; name: string }[] };
 type Field = {
   key: string;
   label: string;
@@ -71,6 +78,7 @@ const modules = [
   { id: "sap-users", label: "SAP Users", icon: Users },
   { id: "credentials", label: "My credentials", icon: ShieldCheck },
   { id: "profile", label: "My profile", icon: Users },
+  { id: "tutorial", label: "Tutorial", icon: BookOpen },
 ];
 const fields: Record<string, Field[]> = {
   computers: [
@@ -393,9 +401,20 @@ const statusClass = (value: string) =>
       : "neutral";
 
 export default function MisApp() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    const saved = localStorage.getItem("mis-theme");
+    if (saved === "light") setTheme("light");
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("mis-theme", theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme(current => current === "dark" ? "light" : "dark");
   const [account, setAccount] = useState<User | null>(null);
   const [dealershipId, setDealershipId] = useState("");
   const [initialView, setInitialView] = useState("dashboard");
+  const [searchTarget, setSearchTarget] = useState<SearchResult | null>(null);
   const authRevision = useRef(0);
   function authenticated(user: User | null) {
     authRevision.current++;
@@ -421,11 +440,12 @@ export default function MisApp() {
       {allowed.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
     </select> : <span className="dealership-current">{allowed[0]?.name || "No dealership assigned"}</span>}
   </div> : null;
-  return <MisWorkspace key={`${account?.id || "guest"}:${dealershipId}`} dealershipId={dealershipId} onAuthenticated={authenticated} dealershipControl={dealershipControl} initialView={initialView} onSelectDealership={(id, nextView) => { setInitialView(nextView); setDealershipId(id); if (account) sessionStorage.setItem("mis-dealership:" + account.id, id); }} />;
+  return <MisWorkspace key={`${account?.id || "guest"}:${dealershipId}`} dealershipId={dealershipId} onAuthenticated={authenticated} dealershipControl={dealershipControl} initialView={initialView} searchTarget={searchTarget} onSearchTarget={setSearchTarget} theme={theme} onToggleTheme={toggleTheme} onSelectDealership={(id, nextView, target) => { setInitialView(nextView); setSearchTarget(target || null); setDealershipId(id); if (account) sessionStorage.setItem("mis-dealership:" + account.id, id); }} />;
 }
-function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initialView, onSelectDealership}: {dealershipId: string; onAuthenticated: (user: User | null) => void; dealershipControl: React.ReactNode; initialView: string; onSelectDealership: (id: string, view: string) => void}) {
+function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initialView, searchTarget, onSearchTarget, theme, onToggleTheme, onSelectDealership}: {dealershipId: string; onAuthenticated: (user: User | null) => void; dealershipControl: React.ReactNode; initialView: string; searchTarget: SearchResult | null; onSearchTarget: (target: SearchResult | null) => void; theme: "dark" | "light"; onToggleTheme: () => void; onSelectDealership: (id: string, view: string, target?: SearchResult) => void}) {
   const [user, setUser] = useState<User | null>(null),
     [rows, setRows] = useState<Row[]>([]),
+    [recordsLoaded, setRecordsLoaded] = useState(false),
     [directoryRows, setDirectoryRows] = useState<Row[]>([]),
     [demo, setDemo] = useState(false),
     [ready, setReady] = useState(false),
@@ -434,6 +454,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
+    [authMode, setAuthMode] = useState<"login" | "request" | "confirm">("login"),
+    [recoveryEmail, setRecoveryEmail] = useState(""),
     [modal, setModal] = useState<{
       kind: string;
       row?: Row;
@@ -441,6 +463,11 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
       printer?: Row;
     } | null>(null),
     [detail, setDetail] = useState<Row | null>(null),
+    [emailPasswordStatus, setEmailPasswordStatus] = useState<boolean | null>(null),
+    [emailPasswordError, setEmailPasswordError] = useState(""),
+    [emailPasswordBusy, setEmailPasswordBusy] = useState(false),
+    [emailPasswordPrompt, setEmailPasswordPrompt] = useState(false),
+    [revealedEmailPassword, setRevealedEmailPassword] = useState(""),
     [mobile, setMobile] = useState(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -614,17 +641,35 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
       const [data, directory] = await Promise.all([dealershipId ? api("/api/records") : Promise.resolve({ records: [] }), api("/api/directory")]);
       setRows(data.records || []);
       setDirectoryRows(directory.records || []);
+      setRecordsLoaded(true);
     } catch (e) {
       setError((e as Error).message);
     }
   }
+  useEffect(() => {
+    setEmailPasswordStatus(null);
+    setEmailPasswordError("");
+    setEmailPasswordPrompt(false);
+    setRevealedEmailPassword("");
+    if (!detail || detail.kind !== "emails" || !detailInWorkspace || demo || !["ADMIN", "IT"].includes(user?.role || "")) return;
+    let cancelled = false;
+    api(`/api/email-passwords/${detail.id}`).then(data => { if (!cancelled) setEmailPasswordStatus(!!data.hasPassword); }).catch(reason => { if (!cancelled) setEmailPasswordError(reason.message); });
+    return () => { cancelled = true; };
+  }, [detail?.id, detailInWorkspace, dealershipId, demo, user?.role]);
+  useEffect(() => {
+    if (!revealedEmailPassword) return;
+    const timer = window.setTimeout(() => setRevealedEmailPassword(""), 60_000);
+    const hide = () => { if (document.hidden) setRevealedEmailPassword(""); };
+    document.addEventListener("visibilitychange", hide);
+    return () => { window.clearTimeout(timer); document.removeEventListener("visibilitychange", hide); };
+  }, [revealedEmailPassword]);
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
         if (data.user) {
           setUser(data.user);
-          load();
+          if (!data.user.mustChangePassword) load();
         }
       })
       .catch(() => {})
@@ -640,9 +685,11 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
     });
     setRows(demoRows);
     setDirectoryRows(demoRows.filter(r => ["members", "emails"].includes(r.kind)));
+    setRecordsLoaded(true);
     setError("");
   }
   function navigate(id: string) {
+    onSearchTarget(null);
     if (user?.role === "MEMBER" && id === "ip") id = "computers";
     setView(id);
     setQuery("");
@@ -650,6 +697,29 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
     setError("");
     setNotice("");
   }
+  function selectSearchResult(result: SearchResult) {
+    if (result.dealershipId && result.dealershipId !== dealershipId && !demo) {
+      onSelectDealership(result.dealershipId, result.kind, result);
+      return;
+    }
+    onSearchTarget(result);
+    setView(result.kind);
+    setMobile(false);
+    if (["members", "emails"].includes(result.kind)) {
+      const record = directoryRows.find(row => row.id === result.id);
+      if (record) setDetail(record);
+    } else if (!["sap-users", "microsoft-365", "credentials"].includes(result.kind)) {
+      const record = rows.find(row => row.id === result.id);
+      if (record) setDetail(record);
+    }
+  }
+  useEffect(() => {
+    if (!searchTarget || !ready || !user || view !== searchTarget.kind) return;
+    if (["sap-users", "microsoft-365", "credentials"].includes(searchTarget.kind)) return;
+    const record = (searchTarget.kind === "members" || searchTarget.kind === "emails" ? directoryRows : rows).find(row => row.id === searchTarget.id);
+    if (record) { setDetail(record); onSearchTarget(null); }
+    else if (recordsLoaded) { setNotice("This result is no longer available."); onSearchTarget(null); }
+  }, [searchTarget, ready, user, view, rows, directoryRows, recordsLoaded, onSearchTarget]);
   const isDirectory = ["members", "emails"].includes(view);
   const count = (kind: string) => (isDirectory && kind === view ? directoryRows : rows).filter((r) => r.kind === kind).length;
   const label = (id: string) =>
@@ -667,6 +737,19 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
       .map((r) => r.name),
     ...deviceRows.map((r) => r.data.ip).filter(Boolean),
   ]);
+  const mainSubnetAssigned = mainSubnetAssignedCount(assignedIps);
+  const manualAddresses = [
+    ...rows.filter((r) => r.kind === "ip" && !isMainSubnetHost(r.name)).map((row) => ({
+      address: row.name,
+      row,
+      device: deviceRows.find((device) => device.id === row.data.deviceId),
+    })),
+    ...deviceRows.filter((device) => device.data.ip && !isMainSubnetHost(device.data.ip)).map((device) => ({
+      address: String(device.data.ip),
+      row: undefined as Row | undefined,
+      device,
+    })),
+  ].sort((a, b) => compareIpv4(a.address, b.address));
   const current = modules.find((m) => m.id === view);
   const filtered = useMemo(
     () =>
@@ -692,6 +775,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             : String(form.get(f.key) || "")),
     );
     data.notes = String(form.get("notes") || "");
+    const emailPassword = modal.kind === "emails" ? String(form.get("emailPassword") || "") : "";
     try {
       const result = await api(
         `/api/records${modal.row ? `/${modal.row.id}` : ""}`,
@@ -704,6 +788,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 ? `Toner change · ${label(String(data.printerId))} · ${data.date}`
                 : form.get("name"),
             data,
+            ...(emailPassword ? { password: emailPassword } : {}),
           }),
         },
       );
@@ -744,9 +829,30 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
         <p>Opening MIS Hub…</p>
       </div>
     );
+  if (user?.mustChangePassword)
+    return <main className="login-page"><section className="login-form"><div className="login-card">
+      <span className="eyebrow">ACCOUNT SECURITY</span><h2>Change temporary password</h2>
+      <p className="muted">Set your own password to continue to MIS Hub.</p>
+      <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(""); const f = new FormData(e.currentTarget); try {
+        if (f.get("newPassword") !== f.get("confirmPassword")) throw new Error("Passwords do not match.");
+        await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ currentPassword: f.get("currentPassword"), newPassword: f.get("newPassword") }) });
+        setUser(null); onAuthenticated(null); setAuthMode("login"); setNotice("Password changed. Please sign in again.");
+      } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}>
+        <label>Temporary password<input name="currentPassword" type="password" autoComplete="current-password" required /></label>
+        <label>New password<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required /></label>
+        <label>Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} required /></label>
+        {error && <div className="alert error" role="alert">{error}</div>}
+        <button className="button primary full" disabled={busy}>{busy ? "Saving…" : "Change password"}</button>
+      </form>
+      <button className="auth-link" type="button" onClick={async () => { await api("/api/auth/logout", { method: "POST" }); setUser(null); onAuthenticated(null); }}>Sign out</button>
+    </div></section></main>;
   if (!user)
     return (
       <main className="login-page">
+        <button className="theme-toggle login-theme-toggle" type="button" role="switch" aria-checked={theme === "light"} aria-label="Light mode" onClick={onToggleTheme}>
+          {theme === "light" ? <Sun size={16} /> : <Moon size={16} />}
+          <span>Light mode</span><span className="theme-toggle-track" aria-hidden="true" />
+        </button>
         <section className="login-story">
           <div className="brand">
             <div className="brand-symbol">
@@ -782,9 +888,10 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
         </section>
         <section className="login-form">
           <div className="login-card">
-            <span className="eyebrow">WELCOME BACK</span>
-            <h2>Sign in to your workspace</h2>
-            <p className="muted">Use your MIS account to continue.</p>
+            <span className="eyebrow">{authMode === "login" ? "WELCOME BACK" : "ACCOUNT RECOVERY"}</span>
+            <h2>{authMode === "login" ? "Sign in to your workspace" : authMode === "request" ? "Forgot password" : "Enter verification code"}</h2>
+            <p className="muted">{authMode === "login" ? "Use your MIS account to continue." : authMode === "request" ? "We’ll email a code to your MIS login address." : `Enter the code sent to ${recoveryEmail}.`}</p>
+            {authMode === "login" ? <>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -797,11 +904,12 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                     body: JSON.stringify({
                       email: f.get("email"),
                       password: f.get("password"),
+                      rememberMe: f.get("rememberMe") === "on",
                     }),
                   });
                   setUser(d.user);
                   onAuthenticated(d.user);
-                  if (dealershipId) await load();
+                  if (dealershipId && !d.user.mustChangePassword) await load();
                 } catch (e) {
                   setError((e as Error).message);
                 } finally {
@@ -829,12 +937,29 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                   placeholder="Enter your password"
                 />
               </label>
+              <div className="auth-options"><label><input name="rememberMe" type="checkbox" /> Remember me for 30 days</label><button type="button" className="auth-link" onClick={() => { setError(""); setAuthMode("request"); }}>Forgot password?</button></div>
+              {notice && <div className="alert success" role="status">{notice}</div>}
               {error && <div className="alert error">{error}</div>}
               <button className="button primary full" disabled={busy}>
                 {busy ? "Signing in…" : "Sign in"}
                 <ArrowUpRight size={17} />
               </button>
             </form>
+            </> : authMode === "request" ? <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(""); const f = new FormData(e.currentTarget); const email = String(f.get("email") || ""); try { await api("/api/auth/password-reset/request", { method: "POST", body: JSON.stringify({ email }) }); setRecoveryEmail(email); setAuthMode("confirm"); setNotice("If an active MIS login uses that email, a code has been sent."); } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}>
+              <label>MIS login email<input name="email" type="email" autoComplete="username" required /></label>
+              {error && <div className="alert error" role="alert">{error}</div>}
+              <button className="button primary full" disabled={busy}>{busy ? "Sending…" : "Send code"}</button>
+            </form> : <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(""); const f = new FormData(e.currentTarget); try { if (f.get("newPassword") !== f.get("confirmPassword")) throw new Error("Passwords do not match."); await api("/api/auth/password-reset/confirm", { method: "POST", body: JSON.stringify({ email: recoveryEmail, code: f.get("code"), newPassword: f.get("newPassword") }) }); setAuthMode("login"); setNotice("Password reset. Please sign in."); } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}>
+              <label>Six-digit code<input name="code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required /></label>
+              <label>New password<input name="newPassword" type="password" minLength={12} autoComplete="new-password" required /></label>
+              <label>Confirm new password<input name="confirmPassword" type="password" minLength={12} autoComplete="new-password" required /></label>
+              {notice && <div className="alert success" role="status">{notice}</div>}
+              {error && <div className="alert error" role="alert">{error}</div>}
+              <button className="button primary full" disabled={busy}>{busy ? "Resetting…" : "Reset password"}</button>
+            </form>}
+            {authMode !== "login" && <button type="button" className="auth-link" onClick={() => { setAuthMode("login"); setError(""); setNotice(""); }}>Back to sign in</button>}
+            {authMode === "confirm" && <button type="button" className="auth-link" onClick={() => { setAuthMode("request"); setError(""); setNotice(""); }}>Request another code</button>}
+            {authMode === "login" && <>
             <div className="login-divider">
               <span>Take a look around</span>
             </div>
@@ -846,6 +971,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
               <br />
               Database setup is required to save real records.
             </p>
+            </>}
           </div>
         </section>
       </main>
@@ -929,6 +1055,11 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             <strong>{current?.label}</strong>
           </div>
           <div className="top-actions">
+            {user && <GlobalSearch demo={demo} dealershipId={dealershipId} sampleRows={demo ? demoRows : []} onSelect={selectSearchResult} />}
+            <button className="theme-toggle" type="button" role="switch" aria-checked={theme === "light"} aria-label="Light mode" onClick={onToggleTheme}>
+              {theme === "light" ? <Sun size={16} /> : <Moon size={16} />}
+              <span>Light mode</span><span className="theme-toggle-track" aria-hidden="true" />
+            </button>
             {!demo && dealershipControl}
             <span className="environment">
               <span />
@@ -981,12 +1112,16 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
               <div className="eyebrow">
                 {view === "dashboard"
                   ? "WORKSPACE AT A GLANCE"
+                  : view === "tutorial"
+                    ? "LEARN THE WORKSPACE"
                   : "WORKSPACE MANAGEMENT"}
               </div>
               <h1>{view === "dashboard" ? "Overview" : current?.label}</h1>
               <p>
                 {view === "dashboard"
                   ? "A little clarity for everything you manage."
+                  : view === "tutorial"
+                    ? "A guide to every module and the records they share."
                   : view === "credentials"
                     ? "Your private, encrypted account credentials."
                     : view === "microsoft-365"
@@ -1044,7 +1179,9 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
               {notice}
             </div>
           )}
-          {view === "dashboard" ? (
+          {view === "tutorial" ? (
+            <Tutorial onOpen={navigate} canSeeIp={user.role !== "MEMBER"} />
+          ) : view === "dashboard" ? (
             <>
               <div className="stat-grid">
                 {[
@@ -1067,10 +1204,10 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                       user.role === "MEMBER" ? "Assigned IPs" : "Available IPs",
                     value:
                       user.role === "MEMBER"
-                        ? assignedIps.size
-                        : 254 - assignedIps.size,
+                        ? mainSubnetAssigned
+                        : 254 - mainSubnetAssigned,
                     icon: Network,
-                    sub: "172.16.11.0 /24 subnet",
+                    sub: "172.16.11.0 /24 main subnet",
                     target: "ip",
                   },
                   {
@@ -1255,7 +1392,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                   {
                     id: "ip",
                     title: "Know your network",
-                    sub: "Track every address in your subnet",
+                    sub: "Track main subnet and VLAN addresses",
                     icon: Network,
                   },
                   {
@@ -1290,17 +1427,19 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 <div className="ip-legend">
                   <span>
                     <i className="green-dot" />
-                    Assigned / reserved ({assignedIps.size})
+                    Assigned / reserved ({mainSubnetAssigned})
                   </span>
                   <span>
                     <i className="legend-dot free" />
-                    Available ({254 - assignedIps.size})
+                    Available ({254 - mainSubnetAssigned})
                   </span>
                 </div>
               </div>
               <div className="ip-note">
                 .0 is the network address and .255 is broadcast. Confirm your
-                subnet, gateway, and DHCP range before assigning addresses.
+                subnet, gateway, and DHCP range before assigning addresses. Add
+                other VLAN addresses manually with “Add IP assignment,” or enter
+                an access point’s management IP on its device record.
               </div>
               <div className="ip-grid">
                 {Array.from({ length: 254 }, (_, i) => {
@@ -1331,8 +1470,28 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 })}
               </div>
               <div className="panel-footer">
-                {assignedIps.size} addresses assigned or reserved
+                {mainSubnetAssigned} addresses assigned or reserved
                 <span className="muted">254 usable addresses</span>
+              </div>
+              <div className="manual-ip-section">
+                <h3>Manually added addresses</h3>
+                <p className="muted">Addresses outside the 172.16.11.0/24 main subnet</p>
+                {manualAddresses.length ? (
+                  <div className="manual-ip-list">
+                    {manualAddresses.map(({ address, row, device }) => (
+                      <button
+                        className="manual-ip-item"
+                        key={`${row?.id || device?.id}:${address}`}
+                        onClick={() => setDetail(row || device || null)}
+                      >
+                        <strong>{address}</strong>
+                        <span>{device?.name || (row?.data.deviceId ? label(String(row.data.deviceId)) : "Unlinked address")}</span>
+                        <span>{row ? [row.data.status, row.data.allocation].filter(Boolean).join(" · ") || "IP assignment" : "Device management IP"}</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+                ) : <p className="muted">No addresses outside the main subnet yet.</p>}
               </div>
             </section>
           ) : view === "microsoft-365" ? (
@@ -1342,11 +1501,13 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
               rows={rows}
               demo={demo}
               onChanged={load}
+              openId={searchTarget?.kind === "microsoft-365" ? searchTarget.id : undefined}
+              onOpenHandled={() => onSearchTarget(null)}
             />
           ) : view === "sap-users" ? (
-            <SapUsersManager api={api} members={directoryRows} writable={!demo && ["ADMIN", "IT"].includes(user.role)} demo={demo} />
+            <SapUsersManager api={api} members={directoryRows} writable={!demo && ["ADMIN", "IT"].includes(user.role)} demo={demo} openId={searchTarget?.kind === "sap-users" ? searchTarget.id : undefined} onOpenHandled={() => onSearchTarget(null)} />
           ) : view === "credentials" ? (
-            <CredentialPanel demo={demo} api={api} />
+            <CredentialPanel demo={demo} api={api} openId={searchTarget?.kind === "credentials" ? searchTarget.id : undefined} onOpenHandled={() => onSearchTarget(null)} />
           ) : view === "profile" ? (
             <section className="panel profile-panel">
               <div className="profile-hero">
@@ -1533,7 +1694,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                     defaultValue={modal.row?.name || modal.ip}
                     placeholder={
                       modal.kind === "ip"
-                        ? "172.16.11.10"
+                        ? "172.16.10.50"
                         : "Enter a descriptive name"
                     }
                   />
@@ -1633,6 +1794,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                     )}
                   </label>
                 ))}
+                {modal.kind === "emails" && <label className="wide">{modal.row ? "New password (leave blank to keep current)" : "Password (optional)"}<input name="emailPassword" type="password" autoComplete="new-password" maxLength={4096} /></label>}
                 <label className="wide">
                   {modal.kind === "replacements" ? "Remarks" : "Notes"}
                   <textarea
@@ -1729,6 +1891,11 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                       </div>
                     ))}
                   </div>
+                  {detail.kind === "emails" && detailInWorkspace && !demo && ["ADMIN", "IT"].includes(user.role) && <div className="email-password-panel">
+                    <strong>Email password</strong>
+                    {emailPasswordError && <p className="alert error" role="alert">{emailPasswordError}</p>}
+                    {emailPasswordStatus === null && !emailPasswordError ? <p className="muted">Checking saved password…</p> : emailPasswordStatus === false ? <p className="muted">No password saved. Edit this email account to add one.</p> : revealedEmailPassword ? <><input readOnly value={revealedEmailPassword} aria-label="Revealed email password" /><p className="muted">Hidden after 60 seconds or when you leave this tab.</p><button className="button small" type="button" onClick={() => setRevealedEmailPassword("")}>Hide password</button></> : emailPasswordPrompt ? <form onSubmit={async event => { event.preventDefault(); setEmailPasswordBusy(true); setEmailPasswordError(""); try { const password = String(new FormData(event.currentTarget).get("loginPassword") || ""); const result = await api(`/api/email-passwords/${detail.id}`, { method: "POST", body: JSON.stringify({ loginPassword: password }) }); setRevealedEmailPassword(result.password); setEmailPasswordPrompt(false); } catch (cause) { setEmailPasswordError((cause as Error).message); } finally { setEmailPasswordBusy(false); } }}><label>Your MIS login password<input name="loginPassword" type="password" autoComplete="current-password" required /></label><button className="button primary small" disabled={emailPasswordBusy}>{emailPasswordBusy ? "Verifying…" : "Verify and view"}</button><button className="button small" type="button" onClick={() => setEmailPasswordPrompt(false)}>Cancel</button></form> : emailPasswordStatus ? <div className="email-password-actions"><button className="button small" type="button" onClick={() => setEmailPasswordPrompt(true)}>View password</button><button className="button small danger" type="button" disabled={emailPasswordBusy} onClick={async () => { if (!confirm("Remove the saved password for this email account?")) return; setEmailPasswordBusy(true); setEmailPasswordError(""); try { await api(`/api/email-passwords/${detail.id}`, { method: "DELETE" }); setEmailPasswordStatus(false); setRevealedEmailPassword(""); } catch (cause) { setEmailPasswordError((cause as Error).message); } finally { setEmailPasswordBusy(false); } }}>Remove password</button></div> : null}
+                  </div>}
                 </div>
                 {detail.kind === "printers" &&
                   writable &&
@@ -1897,7 +2064,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 detail.kind === "printers" &&
                 isLaserJet(detail.data.brand) && (
                   <button
-                    className="button"
+                    className="button toner-button"
                     onClick={() => openReplacement(detail)}
                   >
                     <RefreshCw size={15} />
@@ -2046,7 +2213,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                       r.kind === "printers" &&
                       isLaserJet(r.data.brand) && (
                         <button
-                          className="button small"
+                          className="button small toner-button"
                           onClick={(e) => {
                             e.stopPropagation();
                             openReplacement(r);

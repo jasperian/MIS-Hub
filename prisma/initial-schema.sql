@@ -6,6 +6,7 @@ CREATE TABLE `User` (
     `passwordHash` TEXT NOT NULL,
     `role` ENUM('ADMIN', 'IT', 'MANAGER', 'MEMBER') NOT NULL DEFAULT 'MEMBER',
     `active` BOOLEAN NOT NULL DEFAULT true,
+    `mustChangePassword` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `User_email_key`(`email`),
@@ -25,6 +26,18 @@ CREATE TABLE `Session` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `PasswordReset` (
+    `userId` VARCHAR(191) NOT NULL,
+    `codeHash` VARCHAR(191) NULL,
+    `expiresAt` DATETIME(3) NULL,
+    `attempts` INTEGER NOT NULL DEFAULT 0,
+    `requests` INTEGER NOT NULL DEFAULT 0,
+    `windowStart` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `lastRequestedAt` DATETIME(3) NULL,
+    PRIMARY KEY (`userId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `InventoryRecord` (
     `dealershipId` VARCHAR(191) NOT NULL DEFAULT 'dealer-1',
     `id` VARCHAR(191) NOT NULL,
@@ -37,6 +50,15 @@ CREATE TABLE `InventoryRecord` (
     INDEX `InventoryRecord_dealershipId_idx`(`dealershipId`),
     INDEX `InventoryRecord_kind_idx`(`kind`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EmailAccountPassword` (
+    `recordId` VARCHAR(191) NOT NULL,
+    `encryptedSecret` TEXT NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`recordId`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -120,6 +142,28 @@ CREATE TABLE `Dealership` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `SapUser` (
+    `id` VARCHAR(191) NOT NULL,
+    `firstName` VARCHAR(191) NOT NULL,
+    `lastName` VARCHAR(191) NOT NULL,
+    `sapId` VARCHAR(191) NOT NULL,
+    `department` VARCHAR(191) NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    `dealershipId` VARCHAR(191) NOT NULL,
+    `memberId` VARCHAR(191) NULL,
+    `validFrom` DATE NULL,
+    `validTo` DATE NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `SapUser_sapId_key`(`sapId`),
+    UNIQUE INDEX `SapUser_memberId_key`(`memberId`),
+    INDEX `SapUser_dealershipId_idx`(`dealershipId`),
+    INDEX `SapUser_lastName_firstName_idx`(`lastName`, `firstName`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `UserDealership` (
     `userId` VARCHAR(191) NOT NULL,
     `dealershipId` VARCHAR(191) NOT NULL,
@@ -132,7 +176,11 @@ CREATE TABLE `UserDealership` (
 ALTER TABLE `Session` ADD CONSTRAINT `Session_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `PasswordReset` ADD CONSTRAINT `PasswordReset_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `InventoryRecord` ADD CONSTRAINT `InventoryRecord_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `EmailAccountPassword` ADD CONSTRAINT `EmailAccountPassword_recordId_fkey` FOREIGN KEY (`recordId`) REFERENCES `InventoryRecord`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Credential` ADD CONSTRAINT `Credential_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -150,34 +198,13 @@ ALTER TABLE `Ms365Batch` ADD CONSTRAINT `Ms365Batch_dealershipId_fkey` FOREIGN K
 ALTER TABLE `Ms365Assignment` ADD CONSTRAINT `Ms365Assignment_batchId_fkey` FOREIGN KEY (`batchId`) REFERENCES `Ms365Batch`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- CreateTable
-CREATE TABLE `SapUser` (
-    `id` VARCHAR(191) NOT NULL,
-    `firstName` VARCHAR(191) NOT NULL,
-    `lastName` VARCHAR(191) NOT NULL,
-    `sapId` VARCHAR(191) NOT NULL,
-    `department` VARCHAR(191) NOT NULL,
-    `status` ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
-    `dealershipId` VARCHAR(191) NOT NULL,
-    `memberId` VARCHAR(191) NULL,
-    `validFrom` DATE NULL,
-    `validTo` DATE NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-    UNIQUE INDEX `SapUser_sapId_key`(`sapId`),
-    UNIQUE INDEX `SapUser_memberId_key`(`memberId`),
-    INDEX `SapUser_dealershipId_idx`(`dealershipId`),
-    INDEX `SapUser_lastName_firstName_idx`(`lastName`, `firstName`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- AddForeignKey
 ALTER TABLE `SapUser` ADD CONSTRAINT `SapUser_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `SapUser` ADD CONSTRAINT `SapUser_memberId_fkey` FOREIGN KEY (`memberId`) REFERENCES `InventoryRecord`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

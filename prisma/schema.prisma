@@ -18,10 +18,22 @@ model User {
   passwordHash String @db.Text
   role Role @default(MEMBER)
   active Boolean @default(true)
+  mustChangePassword Boolean @default(false)
   createdAt DateTime @default(now())
   dealerships UserDealership[]
   sessions Session[]
   credentials Credential[]
+  passwordReset PasswordReset?
+}
+model PasswordReset {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash String?
+  expiresAt DateTime?
+  attempts Int @default(0)
+  requests Int @default(0)
+  windowStart DateTime @default(now())
+  lastRequestedAt DateTime?
 }
 model Session {
   id String @id @default(cuid())
@@ -42,7 +54,14 @@ model InventoryRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sapUser SapUser?
+  emailPassword EmailAccountPassword?
   @@index([kind])
+}
+model EmailAccountPassword {
+  recordId String @id
+  record InventoryRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  encryptedSecret String @db.Text
+  updatedAt DateTime @updatedAt
 }
 model Credential {
   dealershipId String @default("dealer-1")

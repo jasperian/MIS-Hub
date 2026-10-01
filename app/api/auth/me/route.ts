@@ -8,6 +8,7 @@ import {
   HttpError,
   publicUser,
   requireUser,
+  requirePasswordChangeUser,
   secretString,
   string,
   hashPassword,
@@ -17,7 +18,7 @@ import {
 import { db } from "@/lib/server/db";
 export async function GET() {
   try {
-    return Response.json({ user: publicUser(await requireUser()) });
+    return Response.json({ user: publicUser(await requirePasswordChangeUser()) });
   } catch (error) {
     return failure(error);
   }
@@ -25,10 +26,12 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     checkOrigin(request);
-    const user = await requireUser();
+    const user = await requirePasswordChangeUser();
     const input = await body(request);
+    if (user.mustChangePassword && (input.newPassword === undefined || input.name !== undefined || input.phone !== undefined))
+      throw new HttpError(403, "Change your temporary password to continue.");
     const dealershipId = request.headers.get("x-dealership-id");
-    if (dealershipId) await dealershipDb(request);
+    if (dealershipId && input.phone !== undefined) await dealershipDb(request);
     if (input.phone !== undefined && !dealershipId) throw new HttpError(400, "Select a dealership to edit your team profile.");
     const name =
       input.name === undefined ? user.name : string(input.name, "Name");
@@ -47,7 +50,7 @@ export async function PATCH(request: Request) {
     const updated = await db.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { id: user.id },
-        data: { name, passwordHash },
+        data: { name, passwordHash, ...(passwordHash ? { mustChangePassword: false } : {}) },
         include: { dealerships: { include: { dealership: true } } },
       });
       const scopedTx = dealershipId ? scopedClient(tx, dealershipId) : null;

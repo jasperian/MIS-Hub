@@ -28,7 +28,7 @@ export async function PATCH(
         "Use another administrator to change your account permissions.",
       );
     const dealershipIds = input.dealershipIds === undefined ? undefined : await validateDealershipIds(input.dealershipIds);
-    const data: { active?: boolean; role?: Role; passwordHash?: string } = {};
+    const data: { active?: boolean; role?: Role; passwordHash?: string; mustChangePassword?: boolean } = {};
     if (input.active !== undefined) {
       if (typeof input.active !== "boolean")
         throw new HttpError(400, "Active must be true or false.");
@@ -44,6 +44,7 @@ export async function PATCH(
       if (password.length < 12)
         throw new HttpError(400, "Use at least 12 characters.");
       data.passwordHash = hashPassword(password);
+      data.mustChangePassword = true;
     }
     const user = await db.$transaction(async (tx) => {
       if (dealershipIds) {
@@ -58,7 +59,7 @@ export async function PATCH(
       if (input.active !== undefined || input.role !== undefined || input.password !== undefined)
         await tx.session.deleteMany({ where: { userId: id } });
       await tx.auditLog.create({
-        data: { actorId: actor.id, action: "user.update", targetId: id },
+        data: { actorId: actor.id, action: input.password !== undefined ? "user.password_reset" : "user.update", targetId: id },
       });
       return user;
     });

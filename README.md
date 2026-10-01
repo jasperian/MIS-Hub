@@ -54,13 +54,21 @@ The `/api/microsoft-365` endpoint lists and creates batches, while `/api/microso
 
 ## Network scope
 
-The initial IP inventory uses `172.16.11.0/24`: assignable host addresses end in `.1` through `.254`. `.0` and `.255` are reserved network/broadcast addresses; `.256` is invalid. Confirm your actual subnet, gateway, and DHCP reservations before assigning equipment. Inventory records do not configure devices or perform network discovery.
+The main IP grid uses `172.16.11.0/24`: assignable host addresses end in `.1` through `.254`. `.0` and `.255` are reserved network/broadcast addresses; `.256` is invalid. IT staff can manually add valid IPv4 addresses outside this subnet, such as `172.16.10.50`, through **Add IP assignment**. A device's IP, including an access point's management IP, appears automatically in the manual address list when outside the main subnet; do not create a second IP assignment for the same address. The main grid's counts cover only its 254 host addresses. Confirm each VLAN's subnet, gateway, and DHCP reservations before assigning equipment. Inventory records do not configure devices or perform network discovery.
+
+## Password recovery and remembered sign-in
+
+Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env` to enable emailed password reset codes. Use an SMTP service with a verified sender. Codes go to the MIS login email, expire after 10 minutes, and are never stored in plaintext. SMTP delivery must work before users can recover passwords themselves.
+
+On an existing database, stop the app, apply `prisma/password-recovery-additive.sql` to the configured database, run `npm run db:generate`, then restart. For a new database, `prisma/initial-schema.sql` includes the new tables and fields. Do not import the full initial schema over existing data. Sign-in lasts 8 hours normally or 30 days when **Remember me** is selected. Administrators can set a temporary password under **Team members → MIS login accounts**; this signs out the person and requires them to change it at next sign-in. Share temporary passwords through a separate approved channel.
 
 ## Saved credentials
 
 MIS login passwords are hashed. Recoverable account passwords use authenticated server-side encryption; the encryption key must be stored outside the database and source control. Keep a separate secure backup of that key alongside your database recovery procedure. Losing the key makes encrypted credentials unrecoverable; changing it requires a planned re-encryption migration.
 
-Server-side encryption does not prevent a person with application-server and key access from decrypting credentials. Passwords must never be included in logs, routine inventory exports, or support screenshots. Email management records account assignments; it does not send mail, provision provider accounts, or reset external email passwords.
+Server-side encryption does not prevent a person with application-server and key access from decrypting credentials. Passwords must never be included in logs, routine inventory exports, or support screenshots. Email account passwords are stored separately from shared directory records. Only IT and administrators can save, remove, or reveal them, and revealing requires their MIS login password. The password is hidden after 60 seconds or when the tab is left. Email management does not send mail, provision provider accounts, or reset external email passwords.
+
+For an existing database, apply `prisma/email-password-additive.sql` with `npx prisma db execute --file prisma/email-password-additive.sql --schema prisma/schema.prisma`, run `npm.cmd run db:generate`, then restart the app. New databases receive the table from `prisma/initial-schema.sql`.
 
 ## Validation
 

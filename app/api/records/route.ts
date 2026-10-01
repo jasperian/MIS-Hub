@@ -6,9 +6,11 @@ import {
   HttpError,
   requireStaff,
   requireUser,
+  secretString,
   string,
 } from "@/lib/server/auth";
 import { dealershipDb } from "@/lib/server/dealerships";
+import { encrypt } from "@/lib/server/encryption";
 import {
   checkIp,
   checkLinks,
@@ -60,6 +62,8 @@ export async function POST(request: Request) {
     const kind = string(input.kind, "Category");
     const name = string(input.name, "Name");
     const data = (input.data || {}) as Record<string, unknown>;
+    if (input.password !== undefined && kind !== "emails") throw new HttpError(400, "Passwords can only be saved for email accounts.");
+    const emailPassword = input.password === undefined ? null : secretString(input.password, "Email password");
     if (typeof data !== "object" || Array.isArray(data))
       throw new HttpError(400, "Invalid record data.");
     validate(kind, name, data);
@@ -123,6 +127,7 @@ export async function POST(request: Request) {
         const record = await tx.inventoryRecord.create({
           data: { kind, name, data: data as Prisma.InputJsonValue },
         });
+        if (emailPassword) await tx.emailAccountPassword.create({ data: { recordId: record.id, encryptedSecret: encrypt(emailPassword) } });
         await tx.auditLog.create({
           data: {
             actorId: user.id,

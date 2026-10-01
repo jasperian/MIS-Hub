@@ -211,6 +211,38 @@ test(
         ).status,
         409,
       );
+      const vlanIp = Array.from({ length: 254 }, (_, i) => `172.16.10.${i + 1}`)
+        .find((ip) => !existingRecords.some((r) => {
+          const data = r.data as Record<string, unknown>;
+          return data.ip === ip || data.ipAddress === ip || (r.kind === "ip" && r.name === ip);
+        }));
+      assert.ok(vlanIp, "test requires one available VLAN address");
+      const accessPoint = await create("access-points", { ip: vlanIp });
+      assert.equal(accessPoint.data.ip, vlanIp);
+      assert.equal(
+        (
+          await request("/api/records", "POST", {
+            kind: "ip",
+            name: vlanIp,
+            data: { status: "Assigned" },
+          })
+        ).status,
+        409,
+      );
+      const manualIp = Array.from({ length: 254 }, (_, i) => `10.254.253.${i + 1}`)
+        .find((ip) => !existingRecords.some((r) => {
+          const data = r.data as Record<string, unknown>;
+          return data.ip === ip || data.ipAddress === ip || (r.kind === "ip" && r.name === ip);
+        }));
+      assert.ok(manualIp, "test requires one available manual address");
+      const manual = await create("ip", { status: "Reserved" }, manualIp);
+      const visibleIpRecords = (await (await request("/api/records")).json()).records;
+      assert.ok(visibleIpRecords.some((r: { id: string }) => r.id === accessPoint.id));
+      assert.ok(visibleIpRecords.some((r: { id: string }) => r.id === manual.id));
+      assert.equal((await request(`/api/records/${manual.id}`, "PATCH", {
+        data: { allocation: "Static" },
+      })).status, 200);
+      assert.equal((await request(`/api/records/${manual.id}`, "DELETE")).status, 200);
       const printer = await create("printers");
       const toner = await create("toners", { quantity: 2 });
       const replacement = await create("replacements", {
@@ -402,6 +434,29 @@ test(
         401,
       );
       member = await login(`${marker}@example.com`, newPassword);
+      const remembered = await request("/api/auth/login", "POST", { email: `${marker}@example.com`, password: newPassword, rememberMe: true }, "");
+      assert.equal(remembered.status, 200);
+      assert.match(remembered.headers.get("set-cookie") || "", /Expires=/i);
+      const expiry = remembered.headers.get("set-cookie")!.match(/Expires=([^;]+)/i);
+      assert.ok(expiry && Date.parse(expiry[1]) - Date.now() > 29 * 24 * 60 * 60 * 1000);
+      const rememberedCookie = remembered.headers.get("set-cookie")!.split(";")[0];
+      assert.equal((await request(`/api/users/${userIds[0]}`, "PATCH", { password: newPassword }, member)).status, 403, "members cannot reset accounts");
+      const adminId = (await (await request("/api/auth/me")).json()).user.id;
+      assert.equal((await request(`/api/users/${adminId}`, "PATCH", { password: newPassword })).status, 400, "admin cannot reset own password here");
+      const temporaryPassword = randomBytes(24).toString("base64url");
+      const reset = await request(`/api/users/${userIds[0]}`, "PATCH", { password: temporaryPassword });
+      assert.equal(reset.status, 200, "administrator can set a temporary password");
+      assert.equal((await request("/api/auth/me", "GET", undefined, member)).status, 401, "reset revokes previous sessions");
+      assert.equal((await request("/api/auth/me", "GET", undefined, rememberedCookie)).status, 401, "reset revokes remembered sessions");
+      member = await login(`${marker}@example.com`, temporaryPassword);
+      const required = await (await request("/api/auth/me", "GET", undefined, member)).json();
+      assert.equal(required.user.mustChangePassword, true);
+      assert.equal((await request("/api/directory", "GET", undefined, member)).status, 403, "temporary session cannot access workspace data");
+      const permanentPassword = randomBytes(24).toString("base64url");
+      assert.equal((await request("/api/auth/me", "PATCH", { currentPassword: temporaryPassword, newPassword: permanentPassword }, member)).status, 200);
+      assert.equal((await request("/api/auth/me", "GET", undefined, member)).status, 401, "password change revokes temporary session");
+      member = await login(`${marker}@example.com`, permanentPassword);
+      assert.equal((await request("/api/directory", "GET", undefined, member)).status, 200);
     } finally {
       // Exact IDs created by this test only; immutable history has no public deletion route.
       if (admin) await request("/api/auth/logout", "POST", {});
