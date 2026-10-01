@@ -1625,3 +1625,119 @@ td { color: #c5cae7; border-bottom-color: rgba(255,255,255,.07); }
   .mis-shell::before { animation: none; }
   .nav-item, .button, .quick-card { transition: none; }
 }
+.printer-detail-modal { width: min(1400px, 96vw); max-width: 1400px; }
+.printer-detail-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.printer-detail-layout .detail-grid { grid-template-columns: 1fr; }
+.printer-detail-layout .detail-grid > div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,.12); padding: 12px 0; }
+.printer-change-panel { margin-top: 24px; padding: 20px; }
+.printer-change-panel form, .printer-change-panel label { display: grid; gap: 10px; }
+.printer-change-panel form { gap: 16px; }
+.printer-history { min-width: 0; }
+.printer-history h3, .printer-history > p { padding: 18px; margin: 0; }
+.printer-history td { white-space: normal; }
+@media (max-width: 850px) { .printer-detail-layout { grid-template-columns: 1fr; } }
+/* Printer overview */
+.printer-detail-modal { padding: 28px; background: #111538; }
+.printer-detail-modal > .modal-heading { padding-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,.1); gap: 18px; }
+.printer-detail-modal .modal-heading h2 { font-family: inherit; text-transform: none; font-size: 28px; letter-spacing: -.7px; }
+.printer-detail-modal .modal-heading .button { white-space: nowrap; }
+.printer-detail-layout { grid-template-columns: minmax(290px, 350px) minmax(0, 1fr); gap: 22px; }
+.printer-info-card, .printer-change-panel, .printer-history { background: #1a1f4a; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.12); overflow: hidden; }
+.printer-info-card .detail-grid { padding: 4px 20px 16px; gap: 0; }
+.printer-detail-layout .detail-grid > div { padding: 13px 0; align-items: baseline; }
+.printer-detail-layout .detail-grid > div:last-child { border-bottom: 0; }
+.printer-detail-layout .detail-grid small { font-size: 12px; color: #a9b1d6; }
+.printer-detail-layout .detail-grid strong { font-size: 13px; text-align: right; overflow-wrap: anywhere; max-width: 65%; }
+.printer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.printer-card-heading:has(.printer-card-icon) { justify-content: flex-start; }
+.printer-detail-modal .printer-card-heading h3 { padding: 0; margin: 0; font-size: 16px; }
+.printer-card-heading p { margin: 5px 0 0; font-size: 12px; line-height: 1.5; }
+.printer-card-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; color: #81efb3; background: rgba(53,237,126,.1); }
+.printer-count { padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.07); color: #c6ceef; font-size: 11px; white-space: nowrap; }
+.printer-change-panel { padding: 0; margin-top: 18px; }
+.printer-change-panel form { padding: 20px; gap: 16px; }
+.printer-change-panel > .alert { margin: 16px 20px 0; }
+.printer-change-panel label { color: #c6ceef; font-size: 12px; font-weight: 500; gap: 8px; }
+.printer-change-panel input, .printer-change-panel select, .printer-change-panel textarea { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #343b69; border-radius: 10px; padding: 11px 12px; background: #111638; color: #f0f3ff; font: inherit; color-scheme: dark; }
+.printer-change-panel textarea { resize: vertical; min-height: 84px; }
+.printer-change-panel input:focus, .printer-change-panel select:focus, .printer-change-panel textarea:focus { outline: 2px solid #35ed7e; outline-offset: 2px; }
+.printer-change-panel form > p { margin: -6px 0 0; font-size: 11px; line-height: 1.6; }
+.printer-history table { min-width: 720px; }
+.printer-history th { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; padding: 14px 16px; }
+.printer-history td { padding: 18px 16px; font-size: 12px; line-height: 1.6; vertical-align: top; }
+.printer-history td:nth-child(4), .printer-history td:nth-child(5) { font-variant-numeric: tabular-nums; }
+.printer-history td:last-child { min-width: 130px; overflow-wrap: anywhere; }
+.printer-history-empty { padding: 42px 24px; text-align: center; color: #a9b1d6; }
+.printer-history-empty h3 { padding: 12px 0 0; color: #e2e7ff; font-size: 15px; }
+.printer-history-empty p { font-size: 12px; line-height: 1.6; }
+@media (max-width: 950px) { .printer-detail-layout { grid-template-columns: 1fr; } }
+@media (max-width: 500px) { .printer-detail-modal { padding: 18px; border-radius: 18px; } .printer-detail-modal .modal-heading h2 { font-size: 22px; } .printer-card-heading { padding: 16px; } }
+.printer-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.printer-row-actions .button { min-height: 38px; padding: 9px 14px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; font-size: 12px; line-height: 18px; }
+.printer-row-actions .button:last-child:not(:first-child) { color: #a4f5c8; border-color: rgba(53,237,126,.25); background: rgba(53,237,126,.07); }
+.printer-row-actions .button:last-child:not(:first-child):hover { background: rgba(53,237,126,.14); border-color: rgba(53,237,126,.5); }
+@media (max-width: 650px) { .printer-row-actions { flex-direction: column; align-items: stretch; gap: 8px; } }
+
+.dealership-control { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 12px; color: #d9def8; }
+.dealership-control-label { color: #929ac9; }
+.dealership-control select { max-width: 200px; min-width: 110px; padding: 8px 30px 8px 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; background: #191d53; color: #f0f2ff; font: inherit; color-scheme: dark; }
+.dealership-current { font-weight: 600; }
+.login-accounts { margin-top: 24px; padding: 28px; }
+.accounts-heading, .accounts-list-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 22px; }
+.accounts-heading h2 { margin: 8px 0; font-size: 24px; }
+.login-accounts h3 { margin: 0 0 8px; font-size: 17px; }
+.login-accounts p { line-height: 1.6; }
+.accounts-count { padding: 8px 12px; border: 1px solid rgba(123,133,255,.24); background: rgba(88,101,242,.12); color: #c9ceff; border-radius: 999px; white-space: nowrap; }
+.accounts-create { padding: 24px; border: 1px solid rgba(255,255,255,.09); border-radius: 16px; background: rgba(255,255,255,.025); margin-bottom: 30px; }
+.accounts-form-fields { border: 0; padding: 0; margin: 18px 0 0; min-width: 0; }
+.login-accounts .form-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 24px; }
+.login-accounts small { color: #929ac9; font-size: 11px; line-height: 1.6; }
+.accounts-dealerships { margin: 0; border: 1px solid rgba(255,255,255,.13); padding: 12px 14px; border-radius: 10px; min-width: 0; }
+.accounts-dealerships legend { padding: 0 6px; color: #c6cbed; font-size: 12px; }
+.accounts-access-options { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.login-accounts .accounts-access-option { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,.13); border-radius: 8px; padding: 8px 10px; color: #c6cbed; font-size: 12px; cursor: pointer; }
+.login-accounts [role="status"] { color: #a4f5c8; border: 1px solid rgba(53,237,126,.2); background: rgba(53,237,126,.06); border-radius: 10px; padding: 12px 16px; }
+.accounts-disable:not(:disabled) { color: #ffb7bb; border-color: rgba(255,150,160,.2); }
+.accounts-access-option:has(input:checked) { background: rgba(88,101,242,.17); border-color: rgba(123,133,255,.45); color: #edf0ff; }
+.login-accounts .accounts-access-option input { width: 16px; height: 16px; min-height: 0; padding: 0; margin: 0; accent-color: #7b85ff; flex-shrink: 0; }
+.accounts-access-option:has(input:disabled) { cursor: default; }
+.accounts-form-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 22px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.08); }
+.accounts-search { display: grid; gap: 6px; color: #c6cbed; font-size: 12px; width: 260px; }
+.accounts-search input, .accounts-table select, .accounts-name-grid input { width: 100%; min-width: 0; background: #191d53; color: #edf0ff; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; padding: 10px 12px; font: inherit; color-scheme: dark; }
+.accounts-table { border: 1px solid rgba(255,255,255,.09); border-radius: 12px; }
+.accounts-table table { min-width: 780px; }
+.accounts-table th { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; }
+.accounts-table td { vertical-align: middle; padding: 18px 16px; }
+.accounts-table select { min-width: 160px; }
+.accounts-identity { display: flex; align-items: center; gap: 12px; }
+.accounts-avatar { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: rgba(123,133,255,.16); color: #c9ceff; font-weight: 700; }
+.accounts-identity strong { display: block; color: #edf0ff; margin-bottom: 4px; }
+.accounts-identity small { display: block; overflow-wrap: anywhere; }
+.accounts-you { font-size: 10px; margin-left: 8px; color: #a4f5c8; font-weight: 500; }
+.accounts-help { display: block; margin-top: 8px; }
+.accounts-empty { text-align: center; color: #929ac9; padding: 32px !important; }
+.accounts-settings { margin-top: 24px; border-top: 1px solid rgba(255,255,255,.09); padding-top: 20px; }
+.accounts-settings summary { color: #c6cbed; cursor: pointer; font-weight: 600; }
+.accounts-settings p { margin: 14px 0; }
+.accounts-name-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.accounts-name-grid form { display: flex; align-items: flex-end; gap: 12px; }
+.accounts-name-grid label { display: grid; flex: 1; gap: 8px; color: #c6cbed; min-width: 0; font-size: 12px; }
+.accounts-name-grid button { flex-shrink: 0; min-height: 40px; }
+@media (max-width: 700px) {
+  .login-accounts { padding: 18px; }
+  .accounts-create { padding: 18px; }
+  .accounts-heading, .accounts-list-heading, .accounts-form-footer { align-items: flex-start; flex-direction: column; }
+  .login-accounts .form-grid, .accounts-name-grid { grid-template-columns: 1fr; }
+  .accounts-search, .accounts-form-footer .button { width: 100%; }
+}
+@media (max-width: 700px) {
+  .topbar { height: auto; min-height: 76px; flex-wrap: wrap; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .top-actions { flex-wrap: wrap; gap: 10px; }
+  .dealership-control-label { display: none; }
+  .dealership-control select { max-width: 170px; }
+}
+
+.dealer-tag { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 8px; background: rgba(123,133,255,.15); border: 1px solid rgba(123,133,255,.28); color: #c9ceff; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.dealer-tag-tnesc { background: rgba(53,237,126,.08); border-color: rgba(53,237,126,.25); color: #a4f5c8; }
+
+.directory-context { margin: 16px 0; padding: 12px 16px; color: #bbc2e3; background: rgba(123,133,255,.08); border: 1px solid rgba(123,133,255,.18); border-radius: 10px; line-height: 1.6; }

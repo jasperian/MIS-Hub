@@ -1,3 +1,4 @@
+import { validateDealershipIds } from "@/lib/server/dealerships";
 import { secretString } from "@/lib/server/auth";
 import {
   body,
@@ -16,8 +17,9 @@ export async function GET() {
     if (actor.role !== "ADMIN")
       throw new HttpError(403, "Administrator access required.");
     return Response.json({
+      dealerships: await db.dealership.findMany({ orderBy: { name: "asc" } }),
       users: await db.user.findMany({
-        select: { id: true, name: true, email: true, role: true, active: true },
+        select: { id: true, name: true, email: true, role: true, active: true, dealerships: { include: { dealership: true } } },
         orderBy: { name: "asc" },
       }),
     });
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
     if (actor.role !== "ADMIN")
       throw new HttpError(403, "Administrator access required.");
     const input = await body(request);
+    const dealershipIds = await validateDealershipIds(input.dealershipIds);
     const name = string(input.name, "Name");
     const email = string(input.email, "Email").toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
@@ -49,14 +52,14 @@ export async function POST(request: Request) {
       if (await tx.user.findUnique({ where: { email } }))
         throw new HttpError(409, "An account already uses this email.");
       const user = await tx.user.create({
-        data: { name, email, role, passwordHash: hashPassword(password) },
+        data: { name, email, role, passwordHash: hashPassword(password), dealerships: { create: dealershipIds.map(dealershipId => ({ dealershipId })) } },
         select: { id: true, name: true, email: true, role: true, active: true },
       });
       if (input.memberId) {
         const record = await tx.inventoryRecord.findUnique({
           where: { id: String(input.memberId) },
         });
-        if (!record || record.kind !== "members")
+        if (!record || record.kind !== "members" || !dealershipIds.includes(record.dealershipId) || record.dealershipId !== request.headers.get("x-dealership-id") || !actor.dealerships.some(m => m.dealershipId === record.dealershipId))
           throw new HttpError(400, "Member record not found.");
         const data = record.data as Record<string, string>;
         if (data.userId)

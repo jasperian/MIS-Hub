@@ -6,11 +6,12 @@ import {
   requireUser,
   string,
 } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { encrypt } from "@/lib/server/encryption";
 import { metadata } from "@/lib/server/credentials";
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const db = await dealershipDb(request);
     const user = await requireUser();
     return Response.json({
       credentials: await db.credential.findMany({
@@ -25,6 +26,7 @@ export async function GET() {
 }
 export async function POST(request: Request) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     const input = await body(request);

@@ -28,6 +28,7 @@ test(
         headers: {
           origin,
           "content-type": "application/json",
+          "x-dealership-id": "dealer-1",
           ...(cookie ? { cookie } : {}),
         },
         ...(data === undefined ? {} : { body: JSON.stringify(data) }),
@@ -72,6 +73,7 @@ test(
         email: `${marker}@example.com`,
         password: memberPassword,
         role: "MEMBER",
+        dealershipIds: ["dealer-1"],
         memberId: person.id,
       });
       assert.equal(userResponse.status, 201);
@@ -211,11 +213,46 @@ test(
       );
       const printer = await create("printers");
       const toner = await create("toners", { quantity: 2 });
-      await create("replacements", {
+      const replacement = await create("replacements", {
         printerId: printer.id,
         tonerId: toner.id,
         quantity: 1,
+        pageCounter: 0,
+        notes: "Changed cartridge",
+        changedByName: "Spoofed name",
       });
+      assert.equal(replacement.data.pageCounter, 0);
+      assert.equal(replacement.data.notes, "Changed cartridge");
+      assert.ok(replacement.data.createdBy);
+      assert.ok(replacement.data.changedByName);
+      assert.notEqual(replacement.data.changedByName, "Spoofed name");
+      assert.equal(
+        (
+          await request(`/api/records/${replacement.id}`, "PATCH", {
+            data: { notes: "Edited" },
+          })
+        ).status,
+        400,
+      );
+      assert.equal(
+        (await request(`/api/records/${replacement.id}`, "DELETE")).status,
+        400,
+      );
+      assert.equal(
+        (
+          await request("/api/records", "POST", {
+            kind: "replacements",
+            name: `${marker}-invalid-counter`,
+            data: {
+              printerId: printer.id,
+              tonerId: toner.id,
+              quantity: 1,
+              pageCounter: -1,
+            },
+          })
+        ).status,
+        400,
+      );
       assert.equal(
         (
           (

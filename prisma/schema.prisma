@@ -19,6 +19,7 @@ model User {
   role Role @default(MEMBER)
   active Boolean @default(true)
   createdAt DateTime @default(now())
+  dealerships UserDealership[]
   sessions Session[]
   credentials Credential[]
 }
@@ -31,15 +32,22 @@ model Session {
   @@index([userId])
 }
 model InventoryRecord {
+  dealershipId String @default("dealer-1")
+  dealership Dealership @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  @@index([dealershipId])
   id String @id @default(cuid())
   kind String
   name String
   data Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  sapUser SapUser?
   @@index([kind])
 }
 model Credential {
+  dealershipId String @default("dealer-1")
+  dealership Dealership @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  @@index([dealershipId])
   id String @id @default(cuid())
   title String
   username String
@@ -52,6 +60,9 @@ model Credential {
   @@index([ownerId])
 }
 model AuditLog {
+  dealershipId String?
+  dealership Dealership? @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  @@index([dealershipId, createdAt])
   id String @id @default(cuid())
   actorId String
   action String
@@ -62,9 +73,12 @@ model AuditLog {
 }
 
 model Ms365Batch {
+  dealershipId String @default("dealer-1")
+  dealership Dealership @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  @@index([dealershipId])
   id String @id @default(cuid())
-  batchNumber Int @unique
-  accountEmail String @unique
+  batchNumber Int
+  accountEmail String
   encryptedSecret String @db.Text
   status Ms365BatchStatus @default(ACTIVE)
   notes String? @db.Text
@@ -72,6 +86,8 @@ model Ms365Batch {
   updatedAt DateTime @updatedAt
   assignments Ms365Assignment[]
 
+  @@unique([dealershipId, batchNumber])
+  @@unique([dealershipId, accountEmail])
   @@index([status])
 }
 
@@ -103,4 +119,45 @@ enum Ms365BatchStatus {
 enum Ms365AssignmentStatus {
   ACTIVE
   RELEASED
+}
+
+model Dealership {
+  id String @id @default(cuid())
+  name String
+  users UserDealership[]
+  records InventoryRecord[]
+  credentials Credential[]
+  batches Ms365Batch[]
+  events AuditLog[]
+  sapUsers SapUser[]
+}
+model SapUser {
+  id String @id @default(cuid())
+  firstName String
+  lastName String
+  sapId String @unique
+  department String
+  status SapUserStatus @default(ACTIVE)
+  dealershipId String
+  dealership Dealership @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  memberId String? @unique
+  member InventoryRecord? @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  validFrom DateTime? @db.Date
+  validTo DateTime? @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([dealershipId])
+  @@index([lastName, firstName])
+}
+enum SapUserStatus {
+  ACTIVE
+  INACTIVE
+}
+model UserDealership {
+  userId String
+  dealershipId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealership Dealership @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  @@id([userId, dealershipId])
+  @@index([dealershipId])
 }

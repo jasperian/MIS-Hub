@@ -1,12 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { body, checkOrigin, failure, HttpError, requireUser } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { batchStatus, email, optionalText, ownedMemberIds, requireMs365Manager, serializeBatches } from "@/lib/server/ms365";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     const user = await requireUser();
     const { id } = await context.params;
     const memberIds = user.role === "MEMBER" ? await ownedMemberIds(db, user) : undefined;
@@ -29,6 +30,7 @@ export async function GET(_request: Request, context: Context) {
 
 export async function PATCH(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     requireMs365Manager(user);

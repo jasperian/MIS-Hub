@@ -1,7 +1,8 @@
 import { failure, requireUser, HttpError } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 export async function GET(request: Request) {
   try {
+    const db = await dealershipDb(request);
     const user = await requireUser();
     if (user.role === "MEMBER")
       throw new HttpError(403, "Staff access required.");

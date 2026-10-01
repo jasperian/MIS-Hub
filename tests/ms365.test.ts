@@ -32,6 +32,7 @@ test(
         headers: {
           origin,
           "content-type": "application/json",
+          "x-dealership-id": "dealer-1",
           ...(cookie ? { cookie } : {}),
         },
         ...(data === undefined ? {} : { body: JSON.stringify(data) }),
@@ -76,6 +77,7 @@ test(
         email,
         password,
         role,
+        dealershipIds: ["dealer-1"],
         memberId,
       });
       assert.equal(response.status, 201, `create ${role} login`);

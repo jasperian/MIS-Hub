@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { body, checkOrigin, failure, HttpError, requireUser, secretString } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { encrypt } from "@/lib/server/encryption";
 import { batchStatus, email, optionalText, ownedMemberIds, requireMs365Manager, serializeBatches } from "@/lib/server/ms365";
 
 export async function GET(request: Request) {
   try {
+    const db = await dealershipDb(request);
     const user = await requireUser();
     const searchParams = new URL(request.url).searchParams;
     const q = searchParams.get("q")?.trim().toLowerCase() || "";
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     requireMs365Manager(user);

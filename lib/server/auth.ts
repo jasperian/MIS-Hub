@@ -4,6 +4,7 @@ import {
   timingSafeEqual,
   createHash,
 } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { db } from "./db";
 export const COOKIE = "mis_session";
@@ -28,7 +29,7 @@ export async function currentUser() {
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: tokenHash(token) },
-    include: { user: true },
+    include: { user: { include: { dealerships: { include: { dealership: true } } } } },
   });
   return session && session.expiresAt > new Date() && session.user.active
     ? session.user
@@ -66,8 +67,9 @@ export function publicUser(user: {
   name: string;
   email: string;
   role: string;
+  dealerships?: { dealership: { id: string; name: string } }[];
 }) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return { id: user.id, name: user.name, email: user.email, role: user.role, dealerships: user.dealerships?.map((m) => m.dealership) || [] };
 }
 export async function body(request: Request): Promise<Record<string, unknown>> {
   if (Number(request.headers.get("content-length") || 0) > 65536)
@@ -87,10 +89,18 @@ export async function body(request: Request): Promise<Record<string, unknown>> {
 export function failure(error: unknown) {
   if (error instanceof HttpError)
     return Response.json({ error: error.message }, { status: error.status });
-  console.error(
-    "MIS request failed:",
-    error instanceof Error ? error.name : "UnknownError",
-  );
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    console.error("MIS Prisma request failed:", {
+      code: error.code,
+      clientVersion: error.clientVersion,
+      meta: error.meta,
+    });
+  } else {
+    console.error(
+      "MIS request failed:",
+      error instanceof Error ? error.name : "UnknownError",
+    );
+  }
   return Response.json(
     {
       error:

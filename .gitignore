@@ -5,3 +5,6 @@ node_modules/
 .env.*.local
 *.tsbuildinfo
 test-results/
+
+# Local database snapshots contain private data
+.backups/

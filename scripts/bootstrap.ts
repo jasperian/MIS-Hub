@@ -19,7 +19,7 @@ async function main() {
   const salt = randomBytes(16).toString("hex");
   const passwordHash =
     salt + ":" + scryptSync(password, salt, 64).toString("hex");
-  await db.user.create({ data: { name, email, passwordHash, role: "ADMIN" } });
+  await db.user.create({ data: { name, email, passwordHash, role: "ADMIN", dealerships: { create: (await db.dealership.findMany()).map(d => ({ dealershipId: d.id })) } } });
   console.log("Administrator account created.");
 }
 main()

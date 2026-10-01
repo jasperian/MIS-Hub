@@ -1,3 +1,4 @@
+import { validateDealershipIds } from "@/lib/server/dealerships";
 import { secretString } from "@/lib/server/auth";
 import {
   body,
@@ -26,6 +27,7 @@ export async function PATCH(
         400,
         "Use another administrator to change your account permissions.",
       );
+    const dealershipIds = input.dealershipIds === undefined ? undefined : await validateDealershipIds(input.dealershipIds);
     const data: { active?: boolean; role?: Role; passwordHash?: string } = {};
     if (input.active !== undefined) {
       if (typeof input.active !== "boolean")
@@ -44,12 +46,17 @@ export async function PATCH(
       data.passwordHash = hashPassword(password);
     }
     const user = await db.$transaction(async (tx) => {
+      if (dealershipIds) {
+        await tx.userDealership.deleteMany({ where: { userId: id } });
+        await tx.userDealership.createMany({ data: dealershipIds.map(dealershipId => ({ userId: id, dealershipId })) });
+      }
       const user = await tx.user.update({
         where: { id },
         data,
-        select: { id: true, name: true, email: true, role: true, active: true },
+        select: { id: true, name: true, email: true, role: true, active: true, dealerships: { include: { dealership: true } } },
       });
-      await tx.session.deleteMany({ where: { userId: id } });
+      if (input.active !== undefined || input.role !== undefined || input.password !== undefined)
+        await tx.session.deleteMany({ where: { userId: id } });
       await tx.auditLog.create({
         data: { actorId: actor.id, action: "user.update", targetId: id },
       });

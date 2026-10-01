@@ -26,6 +26,7 @@ CREATE TABLE `Session` (
 
 -- CreateTable
 CREATE TABLE `InventoryRecord` (
+    `dealershipId` VARCHAR(191) NOT NULL DEFAULT 'dealer-1',
     `id` VARCHAR(191) NOT NULL,
     `kind` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
@@ -33,12 +34,14 @@ CREATE TABLE `InventoryRecord` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    INDEX `InventoryRecord_dealershipId_idx`(`dealershipId`),
     INDEX `InventoryRecord_kind_idx`(`kind`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `Credential` (
+    `dealershipId` VARCHAR(191) NOT NULL DEFAULT 'dealer-1',
     `id` VARCHAR(191) NOT NULL,
     `title` VARCHAR(191) NOT NULL,
     `username` VARCHAR(191) NOT NULL,
@@ -48,12 +51,14 @@ CREATE TABLE `Credential` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    INDEX `Credential_dealershipId_idx`(`dealershipId`),
     INDEX `Credential_ownerId_idx`(`ownerId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `AuditLog` (
+    `dealershipId` VARCHAR(191) NULL,
     `id` VARCHAR(191) NOT NULL,
     `actorId` VARCHAR(191) NOT NULL,
     `action` VARCHAR(191) NOT NULL,
@@ -61,12 +66,14 @@ CREATE TABLE `AuditLog` (
     `details` JSON NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
+    INDEX `AuditLog_dealershipId_createdAt_idx`(`dealershipId`, `createdAt`),
     INDEX `AuditLog_createdAt_idx`(`createdAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `Ms365Batch` (
+    `dealershipId` VARCHAR(191) NOT NULL DEFAULT 'dealer-1',
     `id` VARCHAR(191) NOT NULL,
     `batchNumber` INTEGER NOT NULL,
     `accountEmail` VARCHAR(191) NOT NULL,
@@ -76,9 +83,10 @@ CREATE TABLE `Ms365Batch` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `Ms365Batch_batchNumber_key`(`batchNumber`),
-    UNIQUE INDEX `Ms365Batch_accountEmail_key`(`accountEmail`),
+    INDEX `Ms365Batch_dealershipId_idx`(`dealershipId`),
     INDEX `Ms365Batch_status_idx`(`status`),
+    UNIQUE INDEX `Ms365Batch_dealershipId_batchNumber_key`(`dealershipId`, `batchNumber`),
+    UNIQUE INDEX `Ms365Batch_dealershipId_accountEmail_key`(`dealershipId`, `accountEmail`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -103,11 +111,73 @@ CREATE TABLE `Ms365Assignment` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `Dealership` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserDealership` (
+    `userId` VARCHAR(191) NOT NULL,
+    `dealershipId` VARCHAR(191) NOT NULL,
+
+    INDEX `UserDealership_dealershipId_idx`(`dealershipId`),
+    PRIMARY KEY (`userId`, `dealershipId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `Session` ADD CONSTRAINT `Session_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `InventoryRecord` ADD CONSTRAINT `InventoryRecord_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Credential` ADD CONSTRAINT `Credential_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Credential` ADD CONSTRAINT `Credential_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `AuditLog` ADD CONSTRAINT `AuditLog_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Ms365Batch` ADD CONSTRAINT `Ms365Batch_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Ms365Assignment` ADD CONSTRAINT `Ms365Assignment_batchId_fkey` FOREIGN KEY (`batchId`) REFERENCES `Ms365Batch`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserDealership` ADD CONSTRAINT `UserDealership_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE `SapUser` (
+    `id` VARCHAR(191) NOT NULL,
+    `firstName` VARCHAR(191) NOT NULL,
+    `lastName` VARCHAR(191) NOT NULL,
+    `sapId` VARCHAR(191) NOT NULL,
+    `department` VARCHAR(191) NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    `dealershipId` VARCHAR(191) NOT NULL,
+    `memberId` VARCHAR(191) NULL,
+    `validFrom` DATE NULL,
+    `validTo` DATE NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    UNIQUE INDEX `SapUser_sapId_key`(`sapId`),
+    UNIQUE INDEX `SapUser_memberId_key`(`memberId`),
+    INDEX `SapUser_dealershipId_idx`(`dealershipId`),
+    INDEX `SapUser_lastName_firstName_idx`(`lastName`, `firstName`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `SapUser` ADD CONSTRAINT `SapUser_dealershipId_fkey` FOREIGN KEY (`dealershipId`) REFERENCES `Dealership`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SapUser` ADD CONSTRAINT `SapUser_memberId_fkey` FOREIGN KEY (`memberId`) REFERENCES `InventoryRecord`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

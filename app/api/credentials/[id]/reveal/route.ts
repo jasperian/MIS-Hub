@@ -9,13 +9,14 @@ import {
   string,
   verifyPassword,
 } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { decrypt } from "@/lib/server/encryption";
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     rateLimit("reveal:" + user.id);

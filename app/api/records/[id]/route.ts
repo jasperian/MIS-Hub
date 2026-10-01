@@ -7,7 +7,7 @@ import {
   requireStaff,
   string,
 } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import {
   checkIp,
   checkLinks,
@@ -18,6 +18,7 @@ import {
 type Context = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireStaff();
     const { id } = await context.params;
@@ -42,7 +43,7 @@ export async function PATCH(request: Request, context: Context) {
         };
         validate(old.kind, name, data);
         await checkIp(tx, old.kind, name, data, id);
-        await checkLinks(tx, data);
+        await checkLinks(tx, data, request.headers.get("x-dealership-id")!);
         await checkEmail(tx, old.kind, data, id);
         const updated = await tx.inventoryRecord.update({
           where: { id },
@@ -70,6 +71,7 @@ export async function PATCH(request: Request, context: Context) {
 }
 export async function DELETE(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireStaff();
     const { id } = await context.params;

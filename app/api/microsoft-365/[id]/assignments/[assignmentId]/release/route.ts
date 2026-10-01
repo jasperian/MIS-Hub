@@ -1,12 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { body, checkOrigin, failure, HttpError, requireUser } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { dateValue, requireMs365Manager } from "@/lib/server/ms365";
 
 type Context = { params: Promise<{ id: string; assignmentId: string }> };
 
 export async function POST(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     requireMs365Manager(user);

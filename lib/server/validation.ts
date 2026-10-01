@@ -28,6 +28,18 @@ export function validateRecord(
       }
   }
   scan(data);
+  if (
+    kind === "replacements" &&
+    data.pageCounter !== undefined &&
+    data.pageCounter !== null &&
+    data.pageCounter !== "" &&
+    ((typeof data.pageCounter !== "string" &&
+      typeof data.pageCounter !== "number") ||
+      String(data.pageCounter).trim() === "" ||
+      !Number.isSafeInteger(Number(data.pageCounter)) ||
+      Number(data.pageCounter) < 0)
+  )
+    throw new Error("Page counter must be a nonnegative whole number.");
   const ips = [data.ip, data.ipAddress, kind === "ip" ? name : ""];
   for (const ip of ips)
     if (

@@ -40,6 +40,7 @@ export async function checkEmail(
 export async function checkLinks(
   tx: Prisma.TransactionClient,
   data: Record<string, unknown>,
+  dealershipId: string,
 ) {
   const links: Record<string, string[]> = {
     memberId: ["members"],
@@ -76,14 +77,17 @@ export async function checkLinks(
   if (data.userId) {
     const user = await tx.user.findUnique({
       where: { id: String(data.userId) },
+      include: { dealerships: true },
     });
-    if (!user) throw new HttpError(400, "Linked login does not exist.");
+    if (!user || !user.dealerships.some(m => m.dealershipId === dealershipId)) throw new HttpError(400, "Linked login does not exist.");
   }
 }
 export async function preventLinkedDelete(
   tx: Prisma.TransactionClient,
   id: string,
 ) {
+  if (await tx.sapUser.findUnique({ where: { memberId: id } }))
+    throw new HttpError(409, "This team member is linked to a SAP account. Remove that link first.");
   const records = await tx.inventoryRecord.findMany({
     where: { id: { not: id } },
   });

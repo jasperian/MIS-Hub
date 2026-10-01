@@ -10,15 +10,19 @@
     "db:push": "prisma db push",
     "db:bootstrap": "tsx scripts/bootstrap.ts",
     "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:dealerships": "tsx scripts/dealership-migrate.ts",
+    "mcp": "tsx scripts/mcp.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@prisma/client": "^6.19.0",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

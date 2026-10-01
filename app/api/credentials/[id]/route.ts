@@ -7,12 +7,13 @@ import {
   requireUser,
   string,
 } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { decrypt, encrypt } from "@/lib/server/encryption";
 import { metadata } from "@/lib/server/credentials";
 type Context = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     const { id } = await context.params;
@@ -51,6 +52,7 @@ export async function PATCH(request: Request, context: Context) {
 }
 export async function DELETE(request: Request, context: Context) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireUser();
     const { id } = await context.params;

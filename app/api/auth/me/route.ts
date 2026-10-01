@@ -1,3 +1,5 @@
+import { scopedClient } from "@/lib/server/dealership-scope";
+import { dealershipDb } from "@/lib/server/dealerships";
 import { Prisma } from "@prisma/client";
 import {
   body,
@@ -25,6 +27,9 @@ export async function PATCH(request: Request) {
     checkOrigin(request);
     const user = await requireUser();
     const input = await body(request);
+    const dealershipId = request.headers.get("x-dealership-id");
+    if (dealershipId) await dealershipDb(request);
+    if (input.phone !== undefined && !dealershipId) throw new HttpError(400, "Select a dealership to edit your team profile.");
     const name =
       input.name === undefined ? user.name : string(input.name, "Name");
     let passwordHash: string | undefined;
@@ -43,10 +48,12 @@ export async function PATCH(request: Request) {
       const updated = await tx.user.update({
         where: { id: user.id },
         data: { name, passwordHash },
+        include: { dealerships: { include: { dealership: true } } },
       });
-      const members = await tx.inventoryRecord.findMany({
+      const scopedTx = dealershipId ? scopedClient(tx, dealershipId) : null;
+      const members = scopedTx ? await scopedTx.inventoryRecord.findMany({
         where: { kind: "members" },
-      });
+      }) : [];
       for (const member of members) {
         const data = member.data as Record<string, unknown>;
         if (data.userId !== user.id) continue;
@@ -56,11 +63,11 @@ export async function PATCH(request: Request) {
             ? {}
             : { phone: String(input.phone).slice(0, 50) }),
         };
-        await tx.inventoryRecord.update({
+        await scopedTx!.inventoryRecord.update({
           where: { id: member.id },
           data: { name, data: after as Prisma.InputJsonValue },
         });
-        await tx.auditLog.create({
+        await scopedTx!.auditLog.create({
           data: {
             actorId: user.id,
             action: "profile.update",

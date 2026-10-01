@@ -8,7 +8,7 @@ import {
   requireUser,
   string,
 } from "@/lib/server/auth";
-import { db } from "@/lib/server/db";
+import { dealershipDb } from "@/lib/server/dealerships";
 import {
   checkIp,
   checkLinks,
@@ -18,6 +18,7 @@ import {
 } from "@/lib/server/records";
 export async function GET(request: Request) {
   try {
+    const db = await dealershipDb(request);
     const user = await requireUser();
     const kind = new URL(request.url).searchParams.get("kind");
     let records = await db.inventoryRecord.findMany({
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
+    const db = await dealershipDb(request);
     checkOrigin(request);
     const user = await requireStaff();
     const input = await body(request);
@@ -61,10 +63,12 @@ export async function POST(request: Request) {
     if (typeof data !== "object" || Array.isArray(data))
       throw new HttpError(400, "Invalid record data.");
     validate(kind, name, data);
-    const record = await db.$transaction(
+    const result = await db.$transaction(
       async (tx) => {
+        let tonerStock:
+          { name: string; quantity: number; minimum: number } | undefined;
         await checkIp(tx, kind, name, data);
-        await checkLinks(tx, data);
+        await checkLinks(tx, data, request.headers.get("x-dealership-id")!);
         await checkEmail(tx, kind, data);
         if (kind === "replacements") {
           const tonerId = string(data.tonerId, "Toner");
@@ -108,7 +112,13 @@ export async function POST(request: Request) {
           });
           data.quantity = quantity;
           data.createdBy = user.id;
+          data.changedByName = user.name;
           data.recordedAt = new Date().toISOString();
+          tonerStock = {
+            name: toner.name,
+            quantity: Number(td.quantity) - quantity,
+            minimum: Number(td.minimum || 0),
+          };
         }
         const record = await tx.inventoryRecord.create({
           data: { kind, name, data: data as Prisma.InputJsonValue },
@@ -121,11 +131,11 @@ export async function POST(request: Request) {
             details: { after: { name, data } } as Prisma.InputJsonValue,
           },
         });
-        return record;
+        return { record, tonerStock };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-    return Response.json({ record }, { status: 201 });
+    return Response.json(result, { status: 201 });
   } catch (error) {
     return failure(error);
   }

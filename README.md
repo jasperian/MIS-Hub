@@ -81,3 +81,29 @@ Remove-Item Env:MIS_INTEGRATION_URL
 ```
 
 This creates temporary accounts and records to verify member isolation, credential ownership and reauthentication, encrypted storage, duplicate IP rejection, toner transaction rollback, Microsoft 365 batch capacity, device assignment rules, password permissions, and release history. It removes only its created database IDs afterward; corresponding audit events remain. Run against a development database. Without `MIS_INTEGRATION_URL`, integration tests are skipped.
+
+## Dealership access
+
+MIS Hub shares its modules across dealerships while keeping inventory, Microsoft 365 batches, personal credentials, and dealership history separate. The header shows the selected dealership; accounts assigned to both can switch. Selection is saved per browser tab. Roles still determine editing permissions, and personal credentials remain visible only to their owner.
+
+Under **Team members → MIS login accounts**, assign dealerships when creating a login or edit the dealership checkboxes for an existing login. Set User 1 to IT with TNE, User 2 to IT with TNESC, and the administrator to both. These labels are examples: no new accounts or passwords are created automatically. Administrators can rename dealerships in this screen.
+
+For an existing installation, stop the application before running **npm run db:dealerships**, then run **npm run db:generate**, build, and restart. The migration saves a local database snapshot in **.backups/** before any schema changes; it includes table definitions and row data and must be kept private. Existing records and related history move to TNE; existing non-admin logins receive TNE and administrators receive both. TNESC starts empty. Re-running the migration preserves names and membership edits. MySQL DDL is not transactional, so a failed migration can be resumed by running it again. For rollback, stop the application and have the database operator restore the snapshot's original table definitions and rows in dependency order, using the previous application version and the same vault encryption key. Do not apply the initial-schema file to an existing installation.
+
+For a new database, import **prisma/initial-schema.sql**, run **npm run db:dealerships**, then bootstrap the administrator. The migration creates the dealerships even when there are no users; bootstrap assigns a new administrator to all configured dealerships.
+
+Dealership APIs require the **X-Dealership-Id** header. Inventory, vault, Microsoft 365, audit, and dealership profile edits validate current membership on every request. Authentication and administrator account management remain global. User create/update requests accept **dealershipIds**, a nonempty array of valid dealership IDs. Authentication responses include **user.dealerships** with IDs and names; the administrator user-list response also includes all dealerships and each account's memberships. **PATCH /api/dealerships/[id]** accepts a name and requires administrator access.
+
+Run **npm test** for utility checks. Set **MIS_INTEGRATION_URL** to a running local development/test instance to also test real database boundaries, credentials, linked records, existing-session revocation, and existing role restrictions. Integration tests create temporary records and clean up their own IDs.
+
+Team members and Email accounts are shared directories: every signed-in user can browse both dealerships, with a dealership tag on each record. GET /api/directory returns only these two record categories and their dealership names; it requires authentication and has no write methods. Equipment, Microsoft 365, credentials, history and inventory writes remain subject to dealership membership and existing role restrictions. To manage a directory record from another assigned dealership, open its dealership workspace from the record details. New directory records are saved in the currently selected dealership.
+
+### SAP Users
+
+SAP Users is a combined directory for both dealerships. Every signed-in user can view it; IT and administrators can add, edit, and delete SAP accounts for either dealer. Each account has a globally unique SAP ID and may link to one team member from either dealership. A team member can have only one SAP account, and the link must be removed before deleting that team member. Validity dates are optional. SAP passwords are not stored in this module.
+
+For an existing database, apply only the additive SAP table script with `npx prisma db execute --file prisma/sap-users-additive.sql --schema prisma/schema.prisma`, then run `npm run db:generate` and restart the app. The script does not modify existing records and can be re-run. Avoid applying the full initial schema to a populated database. For a fresh database, `prisma/initial-schema.sql` already includes the SAP table.
+
+## MCP integration
+
+See [MCP setup and tools](mcp/README.md) for connecting an MCP-compatible client to MIS-Hub. Read access is enabled by default; inventory mutations require explicit configuration and existing IT/admin permissions.

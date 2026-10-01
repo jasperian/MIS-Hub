@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   LayoutDashboard,
   Network,
@@ -27,6 +27,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import "./mis-app.css";
+import { isLaserJet, replacementHistory } from "@/lib/toner";
 import {
   CredentialPanel,
   ProfileEditor,
@@ -37,6 +38,7 @@ import {
   Microsoft365Manager,
   Microsoft365ProfileSummary,
 } from "./ms365-manager";
+import { SapUsersManager, SapUserMemberSummary } from "./sap-users";
 
 type Row = {
   id: string;
@@ -44,8 +46,10 @@ type Row = {
   name: string;
   data: Record<string, any>;
   updatedAt?: string;
+  dealershipId?: string;
+  dealership?: { id: string; name: string };
 };
-type User = { id: string; name: string; email: string; role: string };
+type User = { id: string; name: string; email: string; role: string; dealerships?: { id: string; name: string }[] };
 type Field = {
   key: string;
   label: string;
@@ -64,6 +68,7 @@ const modules = [
   { id: "members", label: "Team members", icon: Users },
   { id: "emails", label: "Email accounts", icon: Mail },
   { id: "microsoft-365", label: "Microsoft 365", icon: Grid3X3 },
+  { id: "sap-users", label: "SAP Users", icon: Users },
   { id: "credentials", label: "My credentials", icon: ShieldCheck },
   { id: "profile", label: "My profile", icon: Users },
 ];
@@ -388,11 +393,43 @@ const statusClass = (value: string) =>
       : "neutral";
 
 export default function MisApp() {
+  const [account, setAccount] = useState<User | null>(null);
+  const [dealershipId, setDealershipId] = useState("");
+  const [initialView, setInitialView] = useState("dashboard");
+  const authRevision = useRef(0);
+  function authenticated(user: User | null) {
+    authRevision.current++;
+    setAccount(user);
+    if (!user) { setDealershipId(""); setInitialView("dashboard"); return; }
+    const allowed = user.dealerships || [];
+    const saved = sessionStorage.getItem("mis-dealership:" + user.id);
+    setDealershipId(allowed.some(d => d.id === saved) ? saved! : allowed[0]?.id || "");
+  }
+  useEffect(() => {
+    const refresh = () => {
+      const revision = authRevision.current;
+      return fetch("/api/auth/me").then(r => r.json()).then(d => { if (revision === authRevision.current) authenticated(d.user || null); }).catch(() => {});
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+  const allowed = account?.dealerships || [];
+  const dealershipControl = account ? <div className="dealership-control">
+    <span className="dealership-control-label">Dealership</span>
+    {allowed.length > 1 ? <select aria-label="Current dealership" value={dealershipId} onChange={e => { setInitialView("dashboard"); setDealershipId(e.target.value); sessionStorage.setItem("mis-dealership:" + account.id, e.target.value); }}>
+      {allowed.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+    </select> : <span className="dealership-current">{allowed[0]?.name || "No dealership assigned"}</span>}
+  </div> : null;
+  return <MisWorkspace key={`${account?.id || "guest"}:${dealershipId}`} dealershipId={dealershipId} onAuthenticated={authenticated} dealershipControl={dealershipControl} initialView={initialView} onSelectDealership={(id, nextView) => { setInitialView(nextView); setDealershipId(id); if (account) sessionStorage.setItem("mis-dealership:" + account.id, id); }} />;
+}
+function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initialView, onSelectDealership}: {dealershipId: string; onAuthenticated: (user: User | null) => void; dealershipControl: React.ReactNode; initialView: string; onSelectDealership: (id: string, view: string) => void}) {
   const [user, setUser] = useState<User | null>(null),
     [rows, setRows] = useState<Row[]>([]),
+    [directoryRows, setDirectoryRows] = useState<Row[]>([]),
     [demo, setDemo] = useState(false),
     [ready, setReady] = useState(false),
-    [view, setView] = useState("dashboard"),
+    [view, setView] = useState(initialView),
     [query, setQuery] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -401,10 +438,117 @@ export default function MisApp() {
       kind: string;
       row?: Row;
       ip?: string;
+      printer?: Row;
     } | null>(null),
     [detail, setDetail] = useState<Row | null>(null),
     [mobile, setMobile] = useState(false);
-  const writable = !demo && ["ADMIN", "IT"].includes(user?.role || "");
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const detailInWorkspace = !detail?.dealershipId || detail.dealershipId === dealershipId;
+  const writable = !demo && !!dealershipId && ["ADMIN", "IT"].includes(user?.role || "");
+  const [replacementPrinter, setReplacementPrinter] = useState("");
+  const [replacementToner, setReplacementToner] = useState("");
+  const [replacementQuantity, setReplacementQuantity] = useState("1");
+  function openReplacement(printer?: Row) {
+    setError("");
+    setDetail(null);
+    setReplacementPrinter(printer?.id || "");
+    setReplacementToner(printer?.data.tonerId || "");
+    setReplacementQuantity("1");
+    setModal({ kind: "replacements", printer });
+  }
+  function tonerHistory(printerId?: string) {
+    const history = replacementHistory(
+      rows.filter((r) => r.kind === "replacements"),
+    );
+    const visible = history.filter(
+      ({ record }) => !printerId || record.data.printerId === printerId,
+    );
+    if (printerId)
+      return (
+        <div className="printer-history panel">
+          <div className="printer-card-heading">
+            <div>
+              <span className="eyebrow">MAINTENANCE LOG</span>
+              <h3>Replacement history</h3>
+              <p className="muted">
+                Track cartridge changes and printing activity.
+              </p>
+            </div>
+            <span className="printer-count">{visible.length} changes</span>
+          </div>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Toner used</th>
+                  <th>Quantity</th>
+                  <th>Page count</th>
+                  <th>Pages used</th>
+                  <th>User</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(({ record: r, pagesUsed }) => (
+                  <tr key={r.id}>
+                    <td>{r.data.date || "Not recorded"}</td>
+                    <td>{label(r.data.tonerId)}</td>
+                    <td>{r.data.quantity}</td>
+                    <td>
+                      {r.data.pageCounter === "" || r.data.pageCounter == null
+                        ? "Unavailable"
+                        : r.data.pageCounter}
+                    </td>
+                    <td>{pagesUsed}</td>
+                    <td>{r.data.changedByName || "Not recorded"}</td>
+                    <td>{r.data.notes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!visible.length && (
+            <div className="printer-history-empty">
+              <Package size={28} />
+              <h3>No toner changes yet</h3>
+              <p className="muted">
+                Replacement records will appear here after a toner change.
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    return (
+      <div className="replacement-history">
+        <h3>Toner replacement history</h3>
+        {visible.length ? (
+          visible.map(({ record: r, pagesUsed }) => (
+            <div key={r.id}>
+              <strong>
+                {r.data.date || "Date not recorded"} · {label(r.data.printerId)}{" "}
+                · {label(r.data.tonerId)}
+              </strong>
+              <p>
+                {r.data.quantity} cartridge(s) · Page counter:{" "}
+                {r.data.pageCounter === "" || r.data.pageCounter == null
+                  ? "Unavailable"
+                  : r.data.pageCounter}{" "}
+                · Pages used: {pagesUsed}
+              </p>
+              <p>
+                Changed by: {r.data.changedByName || "Not recorded"} · Remarks:{" "}
+                {r.data.notes || "None"}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="muted">No toner replacements recorded yet.</p>
+        )}
+      </div>
+    );
+  }
   useEffect(() => {
     if (!modal && !detail) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -438,9 +582,10 @@ export default function MisApp() {
   async function api(path: string, options: RequestInit = {}) {
     const response = await fetch(path, {
       ...options,
-      headers: { "Content-Type": "application/json", ...options.headers },
+      headers: { "Content-Type": "application/json", ...options.headers, "x-dealership-id": dealershipId },
     });
     const data = await response.json();
+    if (!mounted.current) throw new Error("Dealership changed; previous response discarded.");
     if (
       response.status === 401 &&
       !path.includes("reveal") &&
@@ -448,9 +593,16 @@ export default function MisApp() {
       path !== "/api/auth/me"
     ) {
       setUser(null);
+      onAuthenticated(null);
       setRows([]);
+      setDirectoryRows([]);
       setModal(null);
       setDetail(null);
+    }
+    if (response.status === 403 && data.error === "You do not have access to this dealership.") {
+      setRows([]); setDirectoryRows([]); setModal(null); setDetail(null);
+      const current = await fetch("/api/auth/me").then(r => r.json());
+      if (mounted.current) onAuthenticated(current.user || null);
     }
     if (!response.ok)
       throw new Error(data.error || "Unable to complete this request.");
@@ -459,8 +611,9 @@ export default function MisApp() {
   async function load() {
     setError("");
     try {
-      const data = await api("/api/records");
+      const [data, directory] = await Promise.all([dealershipId ? api("/api/records") : Promise.resolve({ records: [] }), api("/api/directory")]);
       setRows(data.records || []);
+      setDirectoryRows(directory.records || []);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -486,6 +639,7 @@ export default function MisApp() {
       role: "ADMIN",
     });
     setRows(demoRows);
+    setDirectoryRows(demoRows.filter(r => ["members", "emails"].includes(r.kind)));
     setError("");
   }
   function navigate(id: string) {
@@ -496,9 +650,10 @@ export default function MisApp() {
     setError("");
     setNotice("");
   }
-  const count = (kind: string) => rows.filter((r) => r.kind === kind).length;
+  const isDirectory = ["members", "emails"].includes(view);
+  const count = (kind: string) => (isDirectory && kind === view ? directoryRows : rows).filter((r) => r.kind === kind).length;
   const label = (id: string) =>
-    rows.find((r) => r.id === id)?.name || id || "Unassigned";
+    [...rows, ...directoryRows].find((r) => r.id === id)?.name || id || "Unassigned";
   const low = rows.filter(
     (r) =>
       r.kind === "toners" && Number(r.data.quantity) <= Number(r.data.minimum),
@@ -515,12 +670,12 @@ export default function MisApp() {
   const current = modules.find((m) => m.id === view);
   const filtered = useMemo(
     () =>
-      rows.filter(
+      (isDirectory ? directoryRows : rows).filter(
         (r) =>
           r.kind === view &&
           JSON.stringify(r).toLowerCase().includes(query.toLowerCase()),
       ),
-    [rows, view, query],
+    [rows, directoryRows, isDirectory, view, query],
   );
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -538,16 +693,30 @@ export default function MisApp() {
     );
     data.notes = String(form.get("notes") || "");
     try {
-      await api(`/api/records${modal.row ? `/${modal.row.id}` : ""}`, {
-        method: modal.row ? "PATCH" : "POST",
-        body: JSON.stringify({
-          kind: modal.kind,
-          name: form.get("name"),
-          data,
-        }),
-      });
+      const result = await api(
+        `/api/records${modal.row ? `/${modal.row.id}` : ""}`,
+        {
+          method: modal.row ? "PATCH" : "POST",
+          body: JSON.stringify({
+            kind: modal.kind,
+            name:
+              modal.kind === "replacements"
+                ? `Toner change · ${label(String(data.printerId))} · ${data.date}`
+                : form.get("name"),
+            data,
+          }),
+        },
+      );
       setModal(null);
       setNotice("Record saved successfully.");
+      if (modal.kind === "replacements") {
+        const stock = result.tonerStock;
+        setNotice(
+          stock && stock.quantity <= stock.minimum
+            ? `Toner changed. Low stock: ${stock.name} has ${stock.quantity} cartridge(s) remaining.`
+            : "Toner changed and stock updated.",
+        );
+      }
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -631,7 +800,8 @@ export default function MisApp() {
                     }),
                   });
                   setUser(d.user);
-                  await load();
+                  onAuthenticated(d.user);
+                  if (dealershipId) await load();
                 } catch (e) {
                   setError((e as Error).message);
                 } finally {
@@ -700,7 +870,7 @@ export default function MisApp() {
         </div>
         <div className="workspace-label">
           <span className="workspace-dot" />
-          Main workspace<span className="workspace-pill">IT</span>
+          {user.dealerships?.find(d => d.id === dealershipId)?.name || "Sample workspace"}<span className="workspace-pill">IT</span>
         </div>
         <div className="nav-caption">WORKSPACE</div>
         <nav>
@@ -759,6 +929,7 @@ export default function MisApp() {
             <strong>{current?.label}</strong>
           </div>
           <div className="top-actions">
+            {!demo && dealershipControl}
             <span className="environment">
               <span />
               {demo ? "Demo mode" : "Live workspace"}
@@ -782,6 +953,7 @@ export default function MisApp() {
                 setUser(null);
                 setDemo(false);
                 setRows([]);
+                setDirectoryRows([]);
                 setDetail(null);
                 setModal(null);
                 setView("dashboard");
@@ -819,9 +991,13 @@ export default function MisApp() {
                     ? "Your private, encrypted account credentials."
                     : view === "microsoft-365"
                       ? "Shared accounts and five-device installation batches."
-                    : view === "profile"
-                      ? "Your details and everything assigned to you."
-                      : `Keep your ${current?.label.toLowerCase()} organized and up to date.`}
+                      : view === "sap-users"
+                        ? "Review SAP access, departments, validity dates, and dealer assignments."
+                      : view === "profile"
+                        ? "Your details and everything assigned to you."
+                        : isDirectory
+                          ? "Shared directory across all dealerships. Each record shows its dealership."
+                          : `Keep your ${current?.label.toLowerCase()} organized and up to date.`}
               </p>
             </div>
             {fields[view] && (
@@ -1167,6 +1343,8 @@ export default function MisApp() {
               demo={demo}
               onChanged={load}
             />
+          ) : view === "sap-users" ? (
+            <SapUsersManager api={api} members={directoryRows} writable={!demo && ["ADMIN", "IT"].includes(user.role)} demo={demo} />
           ) : view === "credentials" ? (
             <CredentialPanel demo={demo} api={api} />
           ) : view === "profile" ? (
@@ -1230,6 +1408,7 @@ export default function MisApp() {
                     {!demo && (
                       <Microsoft365ProfileSummary api={api} memberId={r.id} />
                     )}
+                    {!demo && <SapUserMemberSummary api={api} memberId={r.id} />}
                   </div>
                 ))}
               {!rows.some(
@@ -1255,7 +1434,7 @@ export default function MisApp() {
                     <button
                       className="button small"
                       disabled={!writable}
-                      onClick={() => setModal({ kind: "replacements" })}
+                      onClick={() => openReplacement()}
                     >
                       <RefreshCw size={15} />
                       Record replacement
@@ -1276,34 +1455,18 @@ export default function MisApp() {
               <div className="panel-footer">
                 Showing {filtered.length} of {count(view)} records
                 <span className="muted">
-                  {demo ? "Sample data" : "Workspace inventory"}
+                  {demo ? "Sample data" : isDirectory ? "All dealerships · directory" : "Workspace inventory"}
                 </span>
               </div>
-              {view === "toners" && (
-                <div className="replacement-history">
-                  <h3>Replacement history</h3>
-                  {rows.filter((r) => r.kind === "replacements").length ? (
-                    rows
-                      .filter((r) => r.kind === "replacements")
-                      .map((r) => (
-                        <div key={r.id}>
-                          {r.data.date} · {label(r.data.printerId)} ·{" "}
-                          {label(r.data.tonerId)} · {r.data.quantity}{" "}
-                          cartridge(s)
-                        </div>
-                      ))
-                  ) : (
-                    <p className="muted">No toner replacements recorded yet.</p>
-                  )}
-                </div>
-              )}
+              {view === "toners" && tonerHistory()}
             </section>
           )}
           {view === "members" && user.role === "ADMIN" && !demo && (
             <UserManagement
+              currentUserId={user.id}
               api={api}
               members={rows.filter((r) => r.kind === "members")}
-              onSaved={load}
+              onSaved={() => { load(); fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.user && mounted.current) { setUser(d.user); onAuthenticated(d.user); } }); }}
             />
           )}
           <footer className="page-footer">
@@ -1345,12 +1508,28 @@ export default function MisApp() {
               </button>
             </div>
             <form onSubmit={save}>
+              {["members", "emails"].includes(modal.kind) && <p className="directory-context">Saving in {user.dealerships?.find(d => d.id === dealershipId)?.name || "the current dealership"}.</p>}
+              {modal.printer && (
+                <input
+                  type="hidden"
+                  name="printerId"
+                  value={modal.printer.id}
+                />
+              )}
+              {modal.kind === "replacements" && (
+                <p className="muted">
+                  Available stock:{" "}
+                  {rows.find((r) => r.id === replacementToner)?.data.quantity ??
+                    "Select a toner"}
+                  . Saving deducts {replacementQuantity || "0"} cartridge(s).
+                </p>
+              )}
               <div className="form-grid">
-                <label className="wide">
+                <label className="wide" hidden={modal.kind === "replacements"}>
                   {modal.kind === "ip" ? "IP address" : "Name / asset label"}
                   <input
                     name="name"
-                    required
+                    required={modal.kind !== "replacements"}
                     defaultValue={modal.row?.name || modal.ip}
                     placeholder={
                       modal.kind === "ip"
@@ -1368,9 +1547,36 @@ export default function MisApp() {
                         name={f.key}
                         multiple={f.type === "multiple"}
                         required={f.required}
+                        value={
+                          modal.kind === "replacements"
+                            ? f.key === "printerId"
+                              ? replacementPrinter
+                              : replacementToner
+                            : undefined
+                        }
+                        onChange={
+                          modal.kind === "replacements"
+                            ? (e) => {
+                                if (f.key === "printerId") {
+                                  setReplacementPrinter(e.target.value);
+                                  setReplacementToner(
+                                    rows.find((r) => r.id === e.target.value)
+                                      ?.data.tonerId || "",
+                                  );
+                                } else setReplacementToner(e.target.value);
+                              }
+                            : undefined
+                        }
+                        disabled={
+                          modal.kind === "replacements" &&
+                          f.key === "printerId" &&
+                          !!modal.printer
+                        }
                         defaultValue={
-                          modal.row?.data[f.key] ||
-                          (f.type === "multiple" ? [] : "")
+                          modal.kind === "replacements"
+                            ? undefined
+                            : modal.row?.data[f.key] ||
+                              (f.type === "multiple" ? [] : "")
                         }
                       >
                         <option value="">Select {f.label.toLowerCase()}</option>
@@ -1400,24 +1606,35 @@ export default function MisApp() {
                         type={f.type || "text"}
                         min={
                           f.type === "number"
-                            ? modal.kind === "replacements"
+                            ? modal.kind === "replacements" &&
+                              f.key === "quantity"
                               ? 1
                               : 0
                             : undefined
                         }
                         required={f.required}
+                        step={f.type === "number" ? 1 : undefined}
+                        onChange={
+                          modal.kind === "replacements" && f.key === "quantity"
+                            ? (e) => setReplacementQuantity(e.target.value)
+                            : undefined
+                        }
                         defaultValue={
-                          modal.row?.data[f.key] ||
+                          modal.row?.data[f.key] ??
                           (f.key === "quantity" && modal.kind === "replacements"
                             ? "1"
-                            : "")
+                            : f.key === "date" && modal.kind === "replacements"
+                              ? new Date().toLocaleDateString("en-CA", {
+                                  timeZone: "Asia/Manila",
+                                })
+                              : "")
                         }
                       />
                     )}
                   </label>
                 ))}
                 <label className="wide">
-                  Notes
+                  {modal.kind === "replacements" ? "Remarks" : "Notes"}
                   <textarea
                     name="notes"
                     defaultValue={modal.row?.data.notes}
@@ -1445,7 +1662,7 @@ export default function MisApp() {
       {detail && (
         <div className="modal-backdrop" onClick={() => setDetail(null)}>
           <section
-            className="modal"
+            className={`modal ${detail.kind === "printers" ? "printer-detail-modal" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="detail-title"
@@ -1453,39 +1670,211 @@ export default function MisApp() {
           >
             <div className="modal-heading">
               <div>
-                <span className="eyebrow">{detail.kind.replace("-", " ")}</span>
+                <span className="eyebrow">
+                  {detail.kind === "printers"
+                    ? "PRINTER OVERVIEW"
+                    : detail.kind.replace("-", " ")}
+                </span>
                 <h2 id="detail-title">{detail.name}</h2>
+                {["members", "emails"].includes(detail.kind) && <span className={`dealer-tag ${detail.dealershipId === "dealer-2" ? "dealer-tag-tnesc" : ""}`}>{detail.dealership?.name || user.dealerships?.find(d => d.id === detail.dealershipId)?.name || "Sample"}</span>}
               </div>
               <button
-                className="icon-button"
+                className={
+                  detail.kind === "printers" ? "button small" : "icon-button"
+                }
                 onClick={() => setDetail(null)}
                 aria-label="Close details"
               >
-                <X />
+                {detail.kind === "printers" ? "Back to list" : <X />}
               </button>
             </div>
-            <div className="detail-grid">
-              {Object.entries(detail.data).map(([key, value]) => (
-                <div key={key}>
-                  <small>
-                    {fields[detail.kind]?.find((f) => f.key === key)?.label ||
-                      key}
-                  </small>
-                  <strong>
-                    {Array.isArray(value)
-                      ? value.map(label).join(", ")
-                      : key.endsWith("Id")
-                        ? label(String(value))
-                        : String(value || "—")}
-                  </strong>
+            <div
+              className={
+                detail.kind === "printers" ? "printer-detail-layout" : ""
+              }
+            >
+              <div>
+                <div
+                  className={
+                    detail.kind === "printers" ? "printer-info-card" : ""
+                  }
+                >
+                  {detail.kind === "printers" && (
+                    <div className="printer-card-heading">
+                      <span className="printer-card-icon">
+                        <Printer size={20} />
+                      </span>
+                      <div>
+                        <h3>Printer information</h3>
+                        <p className="muted">
+                          Equipment and connection details
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="detail-grid">
+                    {Object.entries(detail.data).map(([key, value]) => (
+                      <div key={key}>
+                        <small>
+                          {fields[detail.kind]?.find((f) => f.key === key)
+                            ?.label || key}
+                        </small>
+                        <strong>
+                          {Array.isArray(value)
+                            ? value.map(label).join(", ")
+                            : key.endsWith("Id")
+                              ? label(String(value))
+                              : String(value ?? "—")}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+                {detail.kind === "printers" &&
+                  writable &&
+                  isLaserJet(detail.data.brand) && (
+                    <section className="panel printer-change-panel">
+                      <div className="printer-card-heading">
+                        <span className="printer-card-icon">
+                          <RefreshCw size={20} />
+                        </span>
+                        <div>
+                          <h3>Log toner change</h3>
+                          <p className="muted">
+                            Record a replacement and update stock.
+                          </p>
+                        </div>
+                      </div>
+                      {notice && (
+                        <div className="alert" role="status">
+                          {notice}
+                        </div>
+                      )}
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (busy) return;
+                          const form = new FormData(e.currentTarget);
+                          const element = e.currentTarget;
+                          setBusy(true);
+                          setError("");
+                          try {
+                            const data = {
+                              printerId: detail.id,
+                              tonerId: String(form.get("tonerId")),
+                              quantity: String(form.get("quantity")),
+                              date: String(form.get("date")),
+                              pageCounter: String(
+                                form.get("pageCounter") || "",
+                              ),
+                              notes: String(form.get("notes") || ""),
+                            };
+                            const result = await api("/api/records", {
+                              method: "POST",
+                              body: JSON.stringify({
+                                kind: "replacements",
+                                name: `Toner change · ${detail.name} · ${data.date}`,
+                                data,
+                              }),
+                            });
+                            const stock = result.tonerStock;
+                            setNotice(
+                              stock && stock.quantity <= stock.minimum
+                                ? `Toner changed. Low stock: ${stock.name} has ${stock.quantity} cartridge(s) remaining.`
+                                : "Toner changed and stock updated.",
+                            );
+                            element.reset();
+                            await load();
+                          } catch (err) {
+                            setError((err as Error).message);
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      >
+                        <label>
+                          Toner supply
+                          <select
+                            name="tonerId"
+                            required
+                            defaultValue={detail.data.tonerId || ""}
+                          >
+                            <option value="">Select toner</option>
+                            {rows
+                              .filter(
+                                (r) =>
+                                  r.kind === "toners" &&
+                                  (!detail.data.tonerId ||
+                                    r.id === detail.data.tonerId),
+                              )
+                              .map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name} · {r.data.quantity || 0} in stock
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <p className="muted">
+                          Logging a change automatically deducts the quantity
+                          from stock.
+                        </p>
+                        <label>
+                          Quantity
+                          <input
+                            name="quantity"
+                            type="number"
+                            min="1"
+                            step="1"
+                            required
+                            defaultValue="1"
+                          />
+                        </label>
+                        <label>
+                          Replacement date
+                          <input
+                            name="date"
+                            type="date"
+                            required
+                            defaultValue={new Date().toLocaleDateString(
+                              "en-CA",
+                              { timeZone: "Asia/Manila" },
+                            )}
+                          />
+                        </label>
+                        <label>
+                          Page count (optional)
+                          <input
+                            name="pageCounter"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="e.g. 15000"
+                          />
+                        </label>
+                        <label>
+                          Remarks
+                          <textarea
+                            name="notes"
+                            rows={3}
+                            placeholder="Notes…"
+                          />
+                        </label>
+                        {error && <div className="alert error">{error}</div>}
+                        <button className="button primary full" disabled={busy}>
+                          {busy ? "Saving…" : "Log change"}
+                        </button>
+                      </form>
+                    </section>
+                  )}
+              </div>
+              {detail.kind === "printers" && tonerHistory(detail.id)}
             </div>
+            {!detailInWorkspace && <p className="directory-context">This directory record belongs to {detail.dealership?.name}. Equipment, history, and editing require access to its dealership workspace.</p>}
             {detail.kind === "members" && (
               <>
                 <h3>Linked equipment & email accounts</h3>
                 {renderTable(
-                  rows.filter(
+                  (detailInWorkspace ? [...rows.filter(r => r.kind !== "emails"), ...directoryRows.filter(r => r.kind === "emails")] : directoryRows.filter(r => r.kind === "emails")).filter(
                     (r) =>
                       r.data.memberId === detail.id ||
                       (Array.isArray(r.data.memberIds) &&
@@ -1493,16 +1882,29 @@ export default function MisApp() {
                   ),
                   true,
                 )}
-                {!demo && (
+                {!demo && detailInWorkspace && (user.role !== "MEMBER" || detail.data.userId === user.id || detail.data.email === user.email) && (
                   <Microsoft365ProfileSummary api={api} memberId={detail.id} />
                 )}
+                {!demo && <SapUserMemberSummary api={api} memberId={detail.id} />}
               </>
             )}
-            {!demo && user.role !== "MEMBER" && (
+            {!demo && detailInWorkspace && user.role !== "MEMBER" && (
               <RecordHistory id={detail.id} api={api} />
             )}
             <div className="modal-footer">
-              {writable && detail.kind !== "replacements" && (
+              {!detailInWorkspace && user.dealerships?.some(d => d.id === detail.dealershipId) && <button className="button primary" onClick={() => onSelectDealership(detail.dealershipId!, detail.kind)}>Open {detail.dealership?.name} workspace</button>}
+              {writable &&
+                detail.kind === "printers" &&
+                isLaserJet(detail.data.brand) && (
+                  <button
+                    className="button"
+                    onClick={() => openReplacement(detail)}
+                  >
+                    <RefreshCw size={15} />
+                    Change toner
+                  </button>
+                )}
+              {writable && detailInWorkspace && detail.kind !== "replacements" && (
                 <>
                   <button
                     className="button danger"
@@ -1548,6 +1950,7 @@ export default function MisApp() {
                   ? "Stock"
                   : "Assigned to / location"}
               </th>
+              {(["members", "emails"].includes(view) && !mixed) && <th>Dealership</th>}
               <th>Status</th>
               <th />
             </tr>
@@ -1607,6 +2010,7 @@ export default function MisApp() {
                       ? label(r.data.memberId)
                       : r.data.location || "—"}
                 </td>
+                {(["members", "emails"].includes(view) && !mixed) && <td><span className={`dealer-tag ${r.dealershipId === "dealer-2" ? "dealer-tag-tnesc" : ""}`}>{r.dealership?.name || user?.dealerships?.find(d => d.id === r.dealershipId)?.name || (demo ? "Sample" : "—")}</span></td>}
                 <td>
                   <span
                     className={`badge ${r.kind === "toners" ? (Number(r.data.quantity) <= Number(r.data.minimum) ? "warn" : "good") : statusClass(r.data.status || "")}`}
@@ -1620,7 +2024,41 @@ export default function MisApp() {
                   </span>
                 </td>
                 <td>
-                  <ChevronRight size={16} />
+                  <div
+                    className={
+                      r.kind === "printers" ? "printer-row-actions" : undefined
+                    }
+                  >
+                    {r.kind === "printers" && (
+                      <button
+                        className="button small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setError("");
+                          setDetail(r);
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        View details
+                      </button>
+                    )}
+                    {writable &&
+                      r.kind === "printers" &&
+                      isLaserJet(r.data.brand) && (
+                        <button
+                          className="button small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openReplacement(r);
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <RefreshCw size={15} />
+                          Change toner
+                        </button>
+                      )}
+                    {r.kind !== "printers" && <ChevronRight size={16} />}
+                  </div>
                 </td>
               </tr>
             ))}

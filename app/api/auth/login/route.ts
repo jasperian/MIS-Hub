@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const email = string(input.email, "Email").toLowerCase();
     rateLimit("login:" + email);
     const password = secretString(input.password, "Password", 1024);
-    const user = await db.user.findUnique({ where: { email } });
+    const user = await db.user.findUnique({ where: { email }, include: { dealerships: { include: { dealership: true } } } });
     if (!user || !user.active || !verifyPassword(password, user.passwordHash))
       throw new HttpError(401, "Invalid email or password.");
     const token = randomBytes(32).toString("hex");
