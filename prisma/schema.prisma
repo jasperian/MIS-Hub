@@ -24,6 +24,35 @@ model User {
   sessions Session[]
   credentials Credential[]
   passwordReset PasswordReset?
+  tasks PersonalTask[]
+  notes PersonalNote[]
+}
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+model PersonalTask {
+  id String @id @default(cuid())
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title String
+  details String? @db.Text
+  priority TaskPriority @default(MEDIUM)
+  completed Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId, completed, priority])
+}
+model PersonalNote {
+  id String @id @default(cuid())
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title String
+  content String @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId, updatedAt])
 }
 model PasswordReset {
   userId String @id

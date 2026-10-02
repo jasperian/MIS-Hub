@@ -12,6 +12,7 @@ const guides = [
   { id: "microsoft-365", title: "Microsoft 365", purpose: "Track shared installation accounts in batches of five active slots.", connection: "Each slot links a team member and a registered computer or an external device description. Releasing a slot keeps its history." },
   { id: "sap-users", title: "SAP Users", purpose: "Keep SAP IDs, departments, validity dates, and dealership assignments in one directory.", connection: "A SAP user can link to one team member across the shared directory. This module does not store SAP passwords." },
   { id: "credentials", title: "My credentials", purpose: "Save your own recoverable account credentials in the encrypted vault.", connection: "Credentials belong to the signed-in person and are separate from email, SAP, and Microsoft 365 inventory records." },
+  { id: "to-do-list", title: "To-Do List", purpose: "Track personal tasks by priority and keep separate titled notes.", connection: "Tasks and notes belong only to your sign-in and stay available across dealership workspaces." },
   { id: "profile", title: "My profile", purpose: "Review your details and assigned equipment and accounts.", connection: "Your profile gathers links created in the member, device, email, and Microsoft 365 modules." },
 ];
 
@@ -36,7 +37,7 @@ export default function Tutorial({ onOpen, canSeeIp }: { onOpen: (id: string) =>
           </article>
         ))}
       </div>
-      <section className="tutorial-note"><strong>Who can make changes?</strong> Administrators manage logins and roles. IT staff and administrators maintain most records. Members can manage their own profile and credentials. The selected dealership controls which inventory you can edit; the team member, email, and SAP directories can be browsed across dealerships.</section>
+      <section className="tutorial-note"><strong>Who can make changes?</strong> Administrators manage logins and roles. IT staff and administrators maintain most records. Members can manage their own profile, credentials, tasks, and notes. The selected dealership controls which inventory you can edit; the team member, email, and SAP directories can be browsed across dealerships.</section>
     </div>
   );
 }

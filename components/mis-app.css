@@ -1900,8 +1900,8 @@ html[data-theme="light"] .tutorial-card > p, html[data-theme="light"] .tutorial-
 html[data-theme="light"] .tutorial-connection strong, html[data-theme="light"] .tutorial-card button, html[data-theme="light"] .tutorial-card-top > span { color: #286b49; }
 @media (max-width: 500px) { .tutorial-intro { padding: 22px; } .tutorial-flow { gap: 7px; } }
 .auth-options { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 2px 0 14px; }
-.auth-options label { display: inline-flex; align-items: center; gap: 7px; }
-.auth-options input { width: auto; }
+.auth-options label { display: inline-flex; flex-direction: row; align-items: center; gap: 7px; margin: 0; }
+.auth-options input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; padding: 0; }
 .auth-link { border: 0; background: transparent; color: #a9eec2; padding: 8px 0; text-decoration: underline; }
 .accounts-reset-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: rgba(3,4,21,.76); }
 .accounts-reset-dialog { width: min(100%, 460px); padding: 26px; border: 1px solid #555d8e; border-radius: 20px; background: #171b4b; color: white; box-shadow: 0 24px 80px #0008; }

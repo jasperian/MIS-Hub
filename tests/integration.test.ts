@@ -15,6 +15,7 @@ test(
     const recordIds: string[] = [],
       userIds: string[] = [],
       credentialIds: string[] = [];
+    const personalTaskIds: string[] = [], personalNoteIds: string[] = [];
     let admin = "",
       member = "";
     async function request(
@@ -79,6 +80,35 @@ test(
       assert.equal(userResponse.status, 201);
       userIds.push((await userResponse.json()).user.id);
       member = await login(`${marker}@example.com`, memberPassword);
+      const lowResponse = await request("/api/personal-tasks", "POST", { title: `${marker}-low`, priority: "LOW" }, member);
+      assert.equal(lowResponse.status, 201);
+      const low = (await lowResponse.json()).task;
+      personalTaskIds.push(low.id);
+      const highResponse = await request("/api/personal-tasks", "POST", { title: `${marker}-high`, priority: "HIGH" }, member);
+      assert.equal(highResponse.status, 201);
+      const high = (await highResponse.json()).task;
+      personalTaskIds.push(high.id);
+      const noteResponse = await request("/api/personal-notes", "POST", { title: `${marker}-note`, content: "Private" }, member);
+      assert.equal(noteResponse.status, 201);
+      const note = (await noteResponse.json()).note;
+      personalNoteIds.push(note.id);
+      const memberTasks = (await (await request("/api/personal-tasks", "GET", undefined, member)).json()).tasks;
+      assert.ok(memberTasks.findIndex((task: { id: string }) => task.id === high.id) < memberTasks.findIndex((task: { id: string }) => task.id === low.id));
+      assert.equal((await request(`/api/personal-tasks/${high.id}`, "PATCH", { completed: true }, member)).status, 200);
+      const reordered = (await (await request("/api/personal-tasks", "GET", undefined, member)).json()).tasks;
+      assert.ok(reordered.findIndex((task: { id: string }) => task.id === low.id) < reordered.findIndex((task: { id: string }) => task.id === high.id));
+      assert.equal((await request(`/api/personal-tasks/${high.id}`, "PATCH", { completed: false }, member)).status, 200);
+      assert.equal((await request("/api/personal-tasks", "POST", { title: "bad", priority: "URGENT" }, member)).status, 400);
+      assert.equal((await request("/api/personal-notes", "POST", { title: "  ", content: "bad" }, member)).status, 400);
+      assert.equal((await request(`/api/personal-tasks/${low.id}`, "PATCH", { title: "stolen" })).status, 404);
+      assert.equal((await request(`/api/personal-tasks/${low.id}`, "DELETE")).status, 404);
+      assert.equal((await request(`/api/personal-notes/${note.id}`, "PATCH", { content: "stolen" })).status, 404);
+      assert.equal((await request(`/api/personal-notes/${note.id}`, "DELETE")).status, 404);
+      assert.ok(!(await (await request("/api/personal-tasks")).json()).tasks.some((task: { id: string }) => task.id === low.id));
+      assert.ok(!(await (await request("/api/personal-notes")).json()).notes.some((item: { id: string }) => item.id === note.id));
+      assert.equal((await request(`/api/personal-notes/${note.id}`, "PATCH", { content: "Updated private note" }, member)).status, 200);
+      assert.equal((await request(`/api/personal-tasks/${low.id}`, "DELETE", undefined, member)).status, 200);
+      personalTaskIds.splice(personalTaskIds.indexOf(low.id), 1);
       assert.equal(
         (
           await request(
@@ -462,6 +492,8 @@ test(
       if (admin) await request("/api/auth/logout", "POST", {});
       if (member) await request("/api/auth/logout", "POST", {}, member);
       await db.credential.deleteMany({ where: { id: { in: credentialIds } } });
+      await db.personalTask.deleteMany({ where: { id: { in: personalTaskIds } } });
+      await db.personalNote.deleteMany({ where: { id: { in: personalNoteIds } } });
       await db.inventoryRecord.deleteMany({ where: { id: { in: recordIds } } });
       await db.user.deleteMany({ where: { id: { in: userIds } } });
       await db.$disconnect();

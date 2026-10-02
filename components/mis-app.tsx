@@ -28,6 +28,7 @@ import {
   Sun,
   Moon,
   BookOpen,
+  ListTodo,
 } from "lucide-react";
 import "./mis-app.css";
 import { isLaserJet, replacementHistory } from "@/lib/toner";
@@ -43,6 +44,7 @@ import {
 } from "./ms365-manager";
 import { SapUsersManager, SapUserMemberSummary } from "./sap-users";
 import Tutorial from "./tutorial";
+import { PersonalOrganizer } from "./personal-organizer";
 import { GlobalSearch } from "./global-search";
 import type { SearchResult } from "@/lib/search";
 import { compareIpv4, isMainSubnetHost, mainSubnetAssignedCount } from "@/lib/ip-addresses";
@@ -77,6 +79,7 @@ const modules = [
   { id: "microsoft-365", label: "Microsoft 365", icon: Grid3X3 },
   { id: "sap-users", label: "SAP Users", icon: Users },
   { id: "credentials", label: "My credentials", icon: ShieldCheck },
+  { id: "to-do-list", label: "To-Do List", icon: ListTodo },
   { id: "profile", label: "My profile", icon: Users },
   { id: "tutorial", label: "Tutorial", icon: BookOpen },
 ];
@@ -865,14 +868,14 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
           <div>
             <span className="eyebrow">YOUR WORKPLACE, CONNECTED</span>
             <h1>
-              A clearer view of
+              Stay on top of
               <br />
-              everything IT.
+              every IT detail.
             </h1>
             <p>
-              People, equipment, and your network.
+              See what you have, who uses it, and what needs attention—
               <br />
-              One organized place to manage it all.
+              all from one workspace.
             </p>
             <div className="login-feature">
               <Monitor /> Equipment inventory <ChevronRight />
@@ -937,7 +940,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                   placeholder="Enter your password"
                 />
               </label>
-              <div className="auth-options"><label><input name="rememberMe" type="checkbox" /> Remember me for 30 days</label><button type="button" className="auth-link" onClick={() => { setError(""); setAuthMode("request"); }}>Forgot password?</button></div>
+              <div className="auth-options"><label><input name="rememberMe" type="checkbox" /> Remember me</label><button type="button" className="auth-link" onClick={() => { setError(""); setAuthMode("request"); }}>Forgot password?</button></div>
               {notice && <div className="alert success" role="status">{notice}</div>}
               {error && <div className="alert error">{error}</div>}
               <button className="button primary full" disabled={busy}>
@@ -1124,6 +1127,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                     ? "A guide to every module and the records they share."
                   : view === "credentials"
                     ? "Your private, encrypted account credentials."
+                  : view === "to-do-list"
+                    ? "Your private tasks, priorities, and notes."
                     : view === "microsoft-365"
                       ? "Shared accounts and five-device installation batches."
                       : view === "sap-users"
@@ -1508,6 +1513,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             <SapUsersManager api={api} members={directoryRows} writable={!demo && ["ADMIN", "IT"].includes(user.role)} demo={demo} openId={searchTarget?.kind === "sap-users" ? searchTarget.id : undefined} onOpenHandled={() => onSearchTarget(null)} />
           ) : view === "credentials" ? (
             <CredentialPanel demo={demo} api={api} openId={searchTarget?.kind === "credentials" ? searchTarget.id : undefined} onOpenHandled={() => onSearchTarget(null)} />
+          ) : view === "to-do-list" ? (
+            <PersonalOrganizer api={api} demo={demo} />
           ) : view === "profile" ? (
             <section className="panel profile-panel">
               <div className="profile-hero">
