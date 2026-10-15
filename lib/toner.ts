@@ -1,11 +1,15 @@
 type Replacement = { id: string; data: Record<string, any> };
 
-export function isLaserJet(brand: unknown) {
+export function requiresToner(brand: unknown) {
   return (
     typeof brand === "string" &&
-    /\blaser\s*jett?\b/i.test(brand)
+    (/\blaser\s*jett?\b/i.test(brand) ||
+      /\bcanon\s+imageclass\s+mf462dw\b/i.test(brand))
   );
 }
+
+// Kept for callers outside this app that may still use the old helper name.
+export const isLaserJet = requiresToner;
 
 export function replacementHistory<T extends Replacement>(records: T[]) {
   const ordered = [...records].sort(

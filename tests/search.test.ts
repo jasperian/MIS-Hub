@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { matchesSearch, visibleInventory } from "../lib/search";
+import { matchesSearch, matchingSearchValue, sortSearchResults, visibleInventory, type SearchResult } from "../lib/search";
 
 const records = [
   { id: "m1", kind: "members", data: { userId: "u1", email: "one@example.com" } },
@@ -21,4 +21,18 @@ test("search matching ignores case and blank queries", () => {
   assert.equal(matchesSearch(" LAP ", ["Office Laptop", "ABC-123"]), true);
   assert.equal(matchesSearch("123", ["Office Laptop", "ABC-123"]), true);
   assert.equal(matchesSearch(" ", ["Office Laptop"]), false);
+});
+
+test("search exposes the field that produced an indirect match", () => {
+  assert.equal(matchingSearchValue("jas", ["Laptop 4", "Jason Santos", "External device"]), "Jason Santos");
+  assert.equal(matchingSearchValue(" ", ["Jason Santos"]), "");
+});
+
+test("search ranks title matches ahead of indirect assignment matches", () => {
+  const result = (id: string, title: string, subtitle: string): SearchResult => ({ id, kind: "members", title, subtitle, dealershipId: "d1", dealershipName: "Dealer" });
+  const sorted = sortSearchResults("jas", [
+    result("batch", "Batch 1", "Assigned to Jason Santos"),
+    result("member", "Jason Santos", "IT"),
+  ]);
+  assert.deepEqual(sorted.map(item => item.id), ["member", "batch"]);
 });

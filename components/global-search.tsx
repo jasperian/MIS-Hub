@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import type { SearchResult } from "@/lib/search";
 
@@ -50,9 +51,7 @@ export function GlobalSearch({ demo, dealershipId, onSelect, sampleRows }: { dem
     }, 220);
     return () => window.clearTimeout(timer);
   }, [query, open, demo, dealershipId, sampleRows]);
-  return <>
-    <button ref={trigger} type="button" className="global-search-trigger" onClick={show} aria-label="Search everywhere"><Search size={17} /><span>Search</span><kbd>Ctrl K</kbd></button>
-    {open && <div className="modal-backdrop global-search-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
+  const dialog = open && <div className="modal-backdrop global-search-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
       <section className="modal global-search-dialog" role="dialog" aria-modal="true" aria-label="Search everywhere" onKeyDown={event => {
         if (event.key === "Escape") { event.preventDefault(); close(); }
         if (event.key === "ArrowDown") { event.preventDefault(); setActive(index => Math.min(index + 1, Math.max(0, results.length - 1))); }
@@ -65,6 +64,9 @@ export function GlobalSearch({ demo, dealershipId, onSelect, sampleRows }: { dem
           {!query.trim() ? <p>Search across accessible dealerships.</p> : loading ? <p>Searching…</p> : error ? <p role="alert">{error}</p> : !results.length ? <p>No matching results.</p> : results.map((result, index) => <button id={`global-result-${index}`} role="option" aria-selected={active === index} className={`global-search-result ${active === index ? "active" : ""}`} key={`${result.kind}:${result.id}`} onMouseEnter={() => setActive(index)} onClick={() => { onSelect(result); close(); }}><span><strong>{result.title}</strong><small>{result.subtitle}</small></span><span className="global-search-context">{labels[result.kind] || result.kind}<small>{result.dealershipName}</small></span></button>)}
         </div>
       </section>
-    </div>}
+    </div>;
+  return <>
+    <button ref={trigger} type="button" className="global-search-trigger" onClick={show} aria-label="Search everywhere"><Search size={17} /><span>Search</span><kbd>Ctrl K</kbd></button>
+    {dialog && createPortal(dialog, document.body)}
   </>;
 }

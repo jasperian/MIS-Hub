@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isLaserJet, replacementHistory } from "../lib/toner";
+import { replacementHistory, requiresToner } from "../lib/toner";
 import { validateRecord } from "../lib/server/validation";
 
-test("LaserJet labels work without HP and tolerate the existing Laserjett spelling", () => {
+test("toner-required printer labels include LaserJet variants and Canon imageCLASS MF462dw", () => {
   for (const brand of ["HP LaserJet Pro", "hp laser jet 1020", "LaserJet", "Laserjett", "LASER JET" , "Canon imageCLASS MF462dw"])
-    assert.equal(isLaserJet(brand), true);
+    assert.equal(requiresToner(brand), true);
   for (const brand of ["Brother laser", "HP DeskJet", "EPSON", undefined])
-    assert.equal(isLaserJet(brand), false);
+    assert.equal(requiresToner(brand), false);
 });
 
 test("optional page counters accept zero and reject invalid values", () => {

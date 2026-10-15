@@ -31,7 +31,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import "./mis-app.css";
-import { isLaserJet, replacementHistory } from "@/lib/toner";
+import { replacementHistory, requiresToner } from "@/lib/toner";
 import {
   CredentialPanel,
   ProfileEditor,
@@ -1906,7 +1906,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 </div>
                 {detail.kind === "printers" &&
                   writable &&
-                  isLaserJet(detail.data.brand) && (
+                  requiresToner(detail.data.brand) && (
                     <section className="panel printer-change-panel">
                       <div className="printer-card-heading">
                         <span className="printer-card-icon">
@@ -2069,7 +2069,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
               {!detailInWorkspace && user.dealerships?.some(d => d.id === detail.dealershipId) && <button className="button primary" onClick={() => onSelectDealership(detail.dealershipId!, detail.kind)}>Open {detail.dealership?.name} workspace</button>}
               {writable &&
                 detail.kind === "printers" &&
-                isLaserJet(detail.data.brand) && (
+                requiresToner(detail.data.brand) && (
                   <button
                     className="button toner-button"
                     onClick={() => openReplacement(detail)}
@@ -2218,7 +2218,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                     )}
                     {writable &&
                       r.kind === "printers" &&
-                      isLaserJet(r.data.brand) && (
+                      requiresToner(r.data.brand) && (
                         <button
                           className="button small toner-button"
                           onClick={(e) => {
