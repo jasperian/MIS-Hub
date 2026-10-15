@@ -52,3 +52,18 @@ textarea:focus-visible {
 ::selection {
   background: #b1edda;
 }
+.offline-banner {
+  position: fixed;
+  z-index: 10000;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  border: 1px solid #e6c66b;
+  border-radius: 9px;
+  color: #382d0a;
+  background: #fff3c4;
+  box-shadow: 0 8px 30px #00000026;
+  font-size: 13px;
+  font-weight: 600;
+}
