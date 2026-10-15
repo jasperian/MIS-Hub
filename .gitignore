@@ -8,3 +8,8 @@ test-results/
 
 # Local database snapshots contain private data
 .backups/
+create-admin.sql
+tmsinv-members-import.sql
+tmsinv.csv
+scripts/generate-tmsinv-sql.py
+scripts/hash-admin-password.mjs
