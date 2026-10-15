@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import "./sap-users.css";
+import { PaginatedItems } from "./table-pagination";
 
 type Member = { id: string; name: string; dealershipId?: string; kind: string };
 type Dealer = { id: string; name: string };
@@ -84,15 +85,15 @@ export function SapUsersManager({ api, members, writable, demo, openId, onOpenHa
       </form>
       {error && editing === undefined && <div className="alert error">{error}</div>}
       {notice && <div className="alert">{notice}</div>}
-      <div className="table-scroll"><table className="sap-table"><thead><tr><th>Status</th><th>SAP ID</th><th>Name</th><th>Department</th><th>Dealer</th><th>Valid period</th><th>Team member</th>{writable && <th>Actions</th>}</tr></thead>
-      <tbody>{visible.map(user => <tr key={user.id} style={selectedId === user.id ? { background: "rgba(115, 150, 220, .16)" } : undefined}>
+      <PaginatedItems items={visible} label="SAP users">{pageItems => <div className="table-scroll"><table className="sap-table"><thead><tr><th>Status</th><th>SAP ID</th><th>Name</th><th>Department</th><th>Dealer</th><th>Valid period</th><th>Team member</th>{writable && <th>Actions</th>}</tr></thead>
+      <tbody>{pageItems.map(user => <tr key={user.id} style={selectedId === user.id ? { background: "rgba(115, 150, 220, .16)" } : undefined}>
         <td><span className={`badge ${user.status === "ACTIVE" ? "good" : "neutral"}`}>{user.status === "ACTIVE" ? "Active" : "Inactive"}</span></td>
         <td><strong>{user.sapId}</strong></td><td>{user.lastName}, {user.firstName}</td><td>{user.department}</td>
         <td><span className="dealer-tag">{user.dealership.name}</span></td>
         <td><div>From: {user.validFrom || "—"}</div><div>To: {user.validTo || "—"}</div></td>
         <td>{user.member?.name || "—"}</td>
         {writable && <td><div className="sap-actions"><button className="button small" aria-label={`Edit ${user.sapId}`} onClick={() => open(user)}><Pencil size={15} /></button><button className="button small" aria-label={`Delete ${user.sapId}`} disabled={busy} onClick={() => remove(user)}><Trash2 size={15} /></button></div></td>}
-      </tr>)}</tbody></table></div>
+      </tr>)}</tbody></table></div>}</PaginatedItems>
       {!visible.length && <div className="sap-empty">{searched ? "No SAP users match your search." : "No SAP users yet."}</div>}
     </section>
     {editing !== undefined && <div className="modal-backdrop" onClick={() => !busy && setEditing(undefined)}><section className="modal sap-modal" role="dialog" aria-modal="true" aria-labelledby="sap-modal-title" onClick={event => event.stopPropagation()}>

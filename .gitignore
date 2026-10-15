@@ -13,3 +13,7 @@ tmsinv-members-import.sql
 tmsinv.csv
 scripts/generate-tmsinv-sql.py
 scripts/hash-admin-password.mjs
+email-import.sql
+Email.xlsx
+sap-import.sql
+SAP.xlsx

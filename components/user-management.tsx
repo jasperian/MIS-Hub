@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PaginatedItems } from "./table-pagination";
 
 type Api = (path: string, options?: RequestInit) => Promise<any>;
 type Dealership = { id: string; name: string };
@@ -223,7 +224,8 @@ export function UserManagement({
           />
         </label>
       </div>
-      <div className="table-scroll accounts-table">
+      <PaginatedItems items={visible} label="accounts">
+      {(pageItems) => <div className="table-scroll accounts-table">
         <table>
           <thead>
             <tr>
@@ -235,7 +237,7 @@ export function UserManagement({
             </tr>
           </thead>
           <tbody>
-            {visible.map((u) => {
+            {pageItems.map((u) => {
               const self = u.id === currentUserId;
               return (
                 <tr key={u.id}>
@@ -339,7 +341,8 @@ export function UserManagement({
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
+      </PaginatedItems>
       <details className="accounts-settings">
         <summary>Dealership names</summary>
         <p className="muted">

@@ -31,6 +31,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import "./mis-app.css";
+import { PaginatedItems } from "./table-pagination";
 import { replacementHistory, requiresToner } from "@/lib/toner";
 import {
   CredentialPanel,
@@ -507,7 +508,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             </div>
             <span className="printer-count">{visible.length} changes</span>
           </div>
-          <div className="table-scroll">
+          <PaginatedItems items={visible} label="changes">
+          {(pageItems) => <div className="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -521,7 +523,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 </tr>
               </thead>
               <tbody>
-                {visible.map(({ record: r, pagesUsed }) => (
+                {pageItems.map(({ record: r, pagesUsed }) => (
                   <tr key={r.id}>
                     <td>{r.data.date || "Not recorded"}</td>
                     <td>{label(r.data.tonerId)}</td>
@@ -538,7 +540,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}
+          </PaginatedItems>
           {!visible.length && (
             <div className="printer-history-empty">
               <Package size={28} />
@@ -2107,7 +2110,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
   );
   function renderTable(items: Row[], mixed = false) {
     return (
-      <div className="table-scroll">
+      <PaginatedItems items={items} label="records">
+      {(pageItems) => <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -2130,7 +2134,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             </tr>
           </thead>
           <tbody>
-            {items.map((r) => (
+            {pageItems.map((r) => (
               <tr
                 key={r.id}
                 onClick={() => setDetail(r)}
@@ -2251,7 +2255,8 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
             </p>
           </div>
         )}
-      </div>
+      </div>}
+      </PaginatedItems>
     );
   }
 }

@@ -14,6 +14,7 @@ import {
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Api } from "./account-controls";
 import "./ms365-manager.css";
+import { PaginatedItems } from "./table-pagination";
 
 export type Ms365User = {
   id: string;
@@ -349,11 +350,12 @@ export function Microsoft365Manager({
           </label>
         </div>
         {filtered.length ? (
-          <div className="table-scroll">
+          <PaginatedItems items={filtered} label="accounts">
+          {(pageItems) => <div className="table-scroll">
             <table>
               <thead><tr><th>Batch</th><th>Account</th><th>Capacity</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
-                {filtered.map((batch) => {
+                {pageItems.map((batch) => {
                   const used = batch.activeCount ?? activeAssignments(batch).length;
                   return (
                     <tr key={batch.id} onClick={() => open({ kind: "detail", batch })}>
@@ -367,7 +369,8 @@ export function Microsoft365Manager({
                 })}
               </tbody>
             </table>
-          </div>
+          </div>}
+          </PaginatedItems>
         ) : (
           <div className="empty-state"><ShieldCheck size={34} /><h3>{query ? "No matching batches" : "No Microsoft 365 batches"}</h3><p>{query ? "Try a different search." : canManage ? "Add the first account batch to begin assigning devices." : "No assignments are connected to your profile."}</p></div>
         )}

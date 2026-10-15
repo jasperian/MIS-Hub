@@ -518,6 +518,12 @@ button {
 .table-scroll {
   overflow: auto;
 }
+.table-pagination { min-height: 58px; padding: 10px 20px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 12px; }
+.table-pagination > div { display: flex; align-items: center; gap: 12px; }
+@media (max-width: 560px) {
+  .table-pagination { align-items: flex-start; flex-direction: column; }
+  .table-pagination > div { width: 100%; justify-content: space-between; }
+}
 table {
   width: 100%;
   border-collapse: collapse;
