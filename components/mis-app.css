@@ -1921,3 +1921,19 @@ html[data-theme="light"] .auth-link { color: #286b49; }
 
 .member-select { display: grid; gap: 8px; min-width: 0; }
 .member-select small { font-weight: 400; }
+.member-select { position: relative; display: block; min-width: 0; }
+.member-select-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border: 1px solid #343b69; border-radius: 10px; background: #111638; color: #f0f3ff; font: inherit; text-align: left; cursor: pointer; }
+.member-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-select-trigger svg { flex-shrink: 0; }
+.member-select-popup { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; display: grid; padding: 5px; border: 1px solid #6575bd; border-radius: 8px; background: #171b4b; box-shadow: 0 8px 24px #0004; }
+.member-select-popup input { width: 100%; min-width: 0; box-sizing: border-box; margin-bottom: 5px; }
+.member-select-options { display: block; max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.member-select-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; border: 0; border-radius: 3px; padding: 8px 7px; background: transparent; color: #f0f3ff; font: inherit; text-align: left; cursor: pointer; }
+.member-select-option.active, .member-select-option:hover { background: #303967; }
+.member-select-option[aria-selected="true"] { font-weight: 600; }
+.member-select-empty, .member-select-hint { display: block; padding: 8px 7px; color: #aeb9d7; }
+.member-select select.member-select-value { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+html[data-theme="light"] .member-select-trigger, html[data-theme="light"] .member-select-popup { color: #202748; background: #fff; border-color: #cdd5e8; }
+html[data-theme="light"] .member-select-option { color: #202748; }
+html[data-theme="light"] .member-select-option.active, html[data-theme="light"] .member-select-option:hover { background: #e9edf2; }
+html[data-theme="light"] .member-select-empty, html[data-theme="light"] .member-select-hint { color: #586780; }
