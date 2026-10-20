@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberSelect } from "./member-select";
+
 import { useEffect, useState } from "react";
 import { PaginatedItems } from "./table-pagination";
 
@@ -170,16 +172,7 @@ export function UserManagement({
               </label>
               <label>
                 Team member profile
-                <select name="memberId">
-                  <option value="">No linked profile</option>
-                  {members
-                    .filter((m) => !m.data.userId)
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                </select>
+                <MemberSelect options={members.filter(m => !m.data.userId)} placeholder="No linked profile" />
               </label>
               <fieldset className="accounts-dealerships">
                 <legend>Dealership access</legend>

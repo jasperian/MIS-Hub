@@ -1918,3 +1918,6 @@ html[data-theme="light"] .tutorial-connection strong, html[data-theme="light"] .
 html[data-theme="light"] .accounts-reset-dialog { background: #fff; color: #202748; border-color: #dce2ef; }
 html[data-theme="light"] .accounts-reset-dialog input { background: #fff; color: #202748; border-color: #cdd5e8; }
 html[data-theme="light"] .auth-link { color: #286b49; }
+
+.member-select { display: grid; gap: 8px; min-width: 0; }
+.member-select small { font-weight: 400; }

@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberSelect } from "./member-select";
+
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   LayoutDashboard,
@@ -1713,7 +1715,7 @@ function MisWorkspace({dealershipId, onAuthenticated, dealershipControl, initial
                   <label key={f.key}>
                     {f.label}
                     {f.required ? " *" : ""}
-                    {f.options || f.link ? (
+                    {f.link === "members" ? (<MemberSelect name={f.key} options={rows.filter(r => r.kind === "members")} multiple={f.type === "multiple"} required={f.required} defaultValue={modal.row?.data[f.key] || (f.type === "multiple" ? [] : "")} placeholder={`Select ${f.label.toLowerCase()}`} />) : f.options || f.link ? (
                       <select
                         name={f.key}
                         multiple={f.type === "multiple"}

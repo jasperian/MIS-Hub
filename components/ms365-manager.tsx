@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberSelect } from "./member-select";
+
 import {
   Check,
   Eye,
@@ -412,7 +414,7 @@ function AssignmentForm({ batch, members, computers, busy, onCancel, onSubmit }:
   return <form onSubmit={(event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); onSubmit(data); }}>
     <p className="ip-note">{activeAssignments(batch).length} of 5 slots are currently used.</p>
     <div className="form-grid">
-      <label>Team member<select name="memberId" required defaultValue=""><option value="" disabled>Select a member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+      <label>Team member<MemberSelect options={members} required /></label>
       <label>Install date<input name="installedAt" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
       <fieldset className="wide ms365-device-choice"><legend>Device source</legend><label><input type="radio" checked={deviceMode === "registered"} onChange={() => setDeviceMode("registered")} /> Registered device</label><label><input type="radio" checked={deviceMode === "external"} onChange={() => setDeviceMode("external")} /> External device</label></fieldset>
       {deviceMode === "registered" ? <label className="wide">Computer or laptop<select name="computerId" required defaultValue=""><option value="" disabled>Select a registered device</option>{computers.map((computer) => <option key={computer.id} value={computer.id}>{computer.name}</option>)}</select></label> : <label className="wide">External device name<input name="externalDeviceName" required placeholder="Example: Alex's home laptop" /></label>}

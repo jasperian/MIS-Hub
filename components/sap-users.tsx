@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberSelect } from "./member-select";
+
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import "./sap-users.css";
@@ -105,7 +107,7 @@ export function SapUsersManager({ api, members, writable, demo, openId, onOpenHa
         <label>Department<input name="department" required maxLength={100} defaultValue={editing?.department || ""} /></label>
         <label>Status<select name="status" defaultValue={editing?.status || "ACTIVE"}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label>
         <label>Dealer<select name="dealershipId" required value={selectedDealer} onChange={event => setSelectedDealer(event.target.value)}><option value="">Select dealer</option>{dealers.map(dealer => <option key={dealer.id} value={dealer.id}>{dealer.name}</option>)}</select></label>
-        <label>Team member (optional)<select name="memberId" value={selectedMember} onChange={event => setSelectedMember(event.target.value)}><option value="">None</option>{members.filter(member => member.kind === "members" && (!users.some(user => user.memberId === member.id) || member.id === editing?.memberId)).sort((a,b) => a.name.localeCompare(b.name)).map(member => <option key={member.id} value={member.id}>{member.name} · {dealers.find(dealer => dealer.id === member.dealershipId)?.name || "Dealer"}</option>)}</select></label>
+        <label>Team member (optional)<MemberSelect value={selectedMember} onChange={setSelectedMember} placeholder="None" options={members.filter(member => member.kind === "members" && (!users.some(user => user.memberId === member.id) || member.id === editing?.memberId)).map(member => ({ id: member.id, name: `${member.name} · ${dealers.find(dealer => dealer.id === member.dealershipId)?.name || "Dealer"}` }))} /></label>
         <span aria-hidden="true" />
         <label>Valid From<input type="date" name="validFrom" defaultValue={editing?.validFrom || ""} /></label>
         <label>Valid To<input type="date" name="validTo" defaultValue={editing?.validTo || ""} /></label>
